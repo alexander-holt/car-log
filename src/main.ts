@@ -1,5 +1,7 @@
 import { createApp } from 'vue'
 import { createPinia } from 'pinia';
+import { databaseService } from './services/databaseService';
+import { useVehicleStore } from './store/vehicleStore';
 import App from './App.vue'
 import router from './router';
 
@@ -35,13 +37,26 @@ import '@ionic/vue/css/palettes/dark.system.css';
 /* Theme variables */
 import './theme/variables.css';
 
-const app = createApp(App);
 const pinia = createPinia();
+const app = createApp(App)
+  .use(IonicVue)
+  .use(router)
+  .use(pinia);
 
-app.use(IonicVue)
-  .use(pinia)
-  .use(router);
+async function bootstrap() {
+  try {
+    // Initialize DB
+    await databaseService.initialize();
+    // Initialize Pinia
+    const vehicleStore = useVehicleStore(pinia);
+    await vehicleStore.loadVehicles();
+  } catch (error) {
+    console.error("Critical boot error:", error);
+  } finally {
+    router.isReady().then(() => {
+      app.mount('#app');
+    });
+  }
+}
 
-router.isReady().then(() => {
-  app.mount('#app');
-});
+bootstrap();
