@@ -6,7 +6,7 @@
       </ion-toolbar>
     </ion-header>
 
-    <ion-content :fullscreen="true">
+    <ion-content :fullscreen="true" id="main-content">
       <ion-header collapse="condense">
         <ion-toolbar>
           <ion-title size="large">My Garage</ion-title>
@@ -29,7 +29,7 @@
       </ion-list>
 
       <ion-fab slot="fixed" vertical="bottom" horizontal="end">
-        <ion-fab-button>
+        <ion-fab-button @click="openAddVehicleModal">
           <ion-icon :icon="add"></ion-icon>
         </ion-fab-button>
       </ion-fab>
@@ -50,11 +50,38 @@ import {
   IonFab,
   IonFabButton,
   IonIcon,
+  modalController,
 } from "@ionic/vue";
 import { add } from "ionicons/icons";
 import { useVehicleStore } from "@/store/vehicleStore";
+import { v4 as uuidv4 } from "uuid";
+import AddVehicleModal from "@/components/AddVehicleModal.vue";
 
 const vehicleStore = useVehicleStore();
+
+const openAddVehicleModal = async () => {
+  const modal = await modalController.create({
+    component: AddVehicleModal,
+    presentingElement: document.getElementById("main-content") || undefined,
+  });
+
+  await modal.present();
+
+  const { data, role } = await modal.onWillDismiss();
+
+  if (role === "confirm" && data) {
+    const newVehicle = {
+      id: uuidv4(),
+      make: data.make,
+      model: data.model,
+      year: data.year,
+      licensePlate: "n/a",
+      curentMileage: 0,
+    };
+
+    vehicleStore.addVehicle(newVehicle);
+  }
+};
 </script>
 
 <style scoped>

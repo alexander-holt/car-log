@@ -6,7 +6,7 @@ export interface Vehicle {
     vin?: string;
     licensePlate?: string;
     engineType?: string;
-    currentMileage: number;
+    currentMileage?: number;
 }
 
 export interface BaseRecord {
