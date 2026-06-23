@@ -18,8 +18,8 @@ CarLog is a cross-platfrom mobile application targeted at **iOS/Android** from o
 
 ### In Development
 
-* Core data types
-* Adding new vehicles
+- Core data types
+- Adding new vehicles
 
 ### Planned Features
 

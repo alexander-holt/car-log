@@ -1,25 +1,36 @@
-import { CapacitorSQLite, SQLiteConnection, SQLiteDBConnection } from "@capacitor-community/sqlite";
+import {
+    CapacitorSQLite,
+    SQLiteConnection,
+    SQLiteDBConnection,
+} from "@capacitor-community/sqlite";
 
 class DatabaseService {
     private sqliteConnection: SQLiteConnection | null = null;
     private dbConnection: SQLiteDBConnection | null = null;
-    private readonly dbName = "car_log_db"
+    private readonly dbName = "car_log_db";
 
     async initialize(): Promise<void> {
         this.sqliteConnection = new SQLiteConnection(CapacitorSQLite);
 
-        const consistency = await this.sqliteConnection.checkConnectionsConsistency();
-        const isConnection = await this.sqliteConnection.isConnection(this.dbName, false);
+        const consistency =
+            await this.sqliteConnection.checkConnectionsConsistency();
+        const isConnection = await this.sqliteConnection.isConnection(
+            this.dbName,
+            false,
+        );
 
         if (consistency.result && isConnection.result) {
-            this.dbConnection = await this.sqliteConnection.retrieveConnection(this.dbName, false);
+            this.dbConnection = await this.sqliteConnection.retrieveConnection(
+                this.dbName,
+                false,
+            );
         } else {
             this.dbConnection = await this.sqliteConnection.createConnection(
                 this.dbName,
                 false,
                 "no-encryption",
                 1,
-                false
+                false,
             );
         }
 
@@ -28,7 +39,8 @@ class DatabaseService {
     }
 
     private async initializeTables(): Promise<void> {
-        if (!this.dbConnection) throw new Error("Database connection not open.");
+        if (!this.dbConnection)
+            throw new Error("Database connection not open.");
 
         const createVehiclesTableQuery = `
             CREATE TABLE IF NOT EXISTS vehicles (
@@ -48,7 +60,9 @@ class DatabaseService {
 
     getDb(): SQLiteDBConnection {
         if (!this.dbConnection) {
-            throw new Error("Database connection has not been established yet.");
+            throw new Error(
+                "Database connection has not been established yet.",
+            );
         }
         return this.dbConnection;
     }

@@ -1,20 +1,10 @@
-import { defineStore } from 'pinia';
-import { ref } from 'vue';
-import type { Vehicle } from '../types';
-import { databaseService } from '@/services/databaseService';
+import { defineStore } from "pinia";
+import { ref } from "vue";
+import type { Vehicle } from "../types";
+import { databaseService } from "@/services/databaseService";
 
-export const useVehicleStore = defineStore('vehicles', () => {
-    const vehicles = ref<Vehicle[]>([
-        // {
-        //     id: '1',
-        //     make: 'Honda',
-        //     model: 'Civic',
-        //     year: 2016,
-        //     vin: "2HGFC2F51GH526306",
-        //     licensePlate: "62ADL8",
-        //     currentMileage: 117000
-        // }
-    ]);
+export const useVehicleStore = defineStore("vehicles", () => {
+    const vehicles = ref<Vehicle[]>([]);
 
     async function loadVehicles(): Promise<void> {
         try {
@@ -42,7 +32,7 @@ export const useVehicleStore = defineStore('vehicles', () => {
                 vehicle.model,
                 vehicle.year,
                 vehicle.licensePlate,
-                vehicle.currentMileage
+                vehicle.currentMileage,
             ];
 
             await db.run(insertQuery, values);
@@ -52,11 +42,11 @@ export const useVehicleStore = defineStore('vehicles', () => {
             console.error("Error storing vehicle in database:", error);
             throw error;
         }
-    };
+    }
 
     return {
         vehicles,
         loadVehicles,
-        addVehicle
+        addVehicle,
     };
 });

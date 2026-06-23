@@ -40,4 +40,7 @@ export interface TireRotationRecord extends PreventativeRecord {
     treadDepthRemaining?: number;
 }
 
-export type MaintenanceRecord = RepairRecord | OilChangeRecord | TireRotationRecord;
+export type MaintenanceRecord =
+    | RepairRecord
+    | OilChangeRecord
+    | TireRotationRecord;
