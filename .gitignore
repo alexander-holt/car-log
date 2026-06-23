@@ -30,3 +30,25 @@ npm-debug.log*
 /platforms
 /plugins
 /www
+
+# Local Environment Variables
+.env.local
+.env.*.local
+
+# Local SQLite Data
+*.db
+*.sqlite
+*.sqlite3
+databases/
+
+# Vue/Vite Caches
+.eslintcache
+dist-ssr/
+
+# Xcode user-specific files
+*.pbxuser
+*.mode1v3
+*.mode2v3
+*.perspectivev3
+xcuserdata/
+DerivedData/
