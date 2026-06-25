@@ -86,7 +86,7 @@ const openAddVehicleModal = async () => {
             make: data.make,
             model: data.model,
             year: data.year,
-            licensePlate: "n/a",
+            licensePlate: "N/A",
             curentMileage: 0,
         };
 
