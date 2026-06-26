@@ -1,64 +1,3 @@
-<template>
-    <ion-page>
-        <ion-header :translucent="true">
-            <ion-toolbar>
-                <ion-title>My Garage</ion-title>
-            </ion-toolbar>
-        </ion-header>
-
-        <ion-content :fullscreen="true" id="main-content">
-            <ion-header collapse="condense">
-                <ion-toolbar>
-                    <ion-title size="large">My Garage</ion-title>
-                </ion-toolbar>
-            </ion-header>
-
-            <div v-if="vehicleStore.vehicles.length === 0" class="empty-state">
-                <p>Your garage is empty.</p>
-                <p>Tap the + button to add a vehicle.</p>
-            </div>
-
-            <ion-list ref="vehicleListRef">
-                <ion-item-sliding
-                    v-for="vehicle in vehicleStore.vehicles"
-                    :key="vehicle.id"
-                >
-                    <ion-item button @click="goToVehicle(vehicle.id)">
-                        <ion-label>
-                            <h2>
-                                {{ vehicle.year }} {{ vehicle.make }}
-                                {{ vehicle.model }}
-                            </h2>
-                            <p>Plate: {{ vehicle.licensePlate }}</p>
-                        </ion-label>
-                    </ion-item>
-
-                    <ion-item-options side="end">
-                        <ion-item-option
-                            color="primary"
-                            @click="openVehicleModal(vehicle)"
-                        >
-                            Edit
-                        </ion-item-option>
-                        <ion-item-option
-                            color="danger"
-                            @click="confirmDelete(vehicle.id)"
-                        >
-                            Delete
-                        </ion-item-option>
-                    </ion-item-options>
-                </ion-item-sliding>
-            </ion-list>
-
-            <ion-fab slot="fixed" vertical="bottom" horizontal="end">
-                <ion-fab-button @click="openVehicleModal()">
-                    <ion-icon :icon="add"></ion-icon>
-                </ion-fab-button>
-            </ion-fab>
-        </ion-content>
-    </ion-page>
-</template>
-
 <script setup lang="ts">
 import {
     IonContent,
@@ -148,6 +87,67 @@ const confirmDelete = async (id: string) => {
     await alert.present();
 };
 </script>
+
+<template>
+    <ion-page>
+        <ion-header :translucent="true">
+            <ion-toolbar>
+                <ion-title>My Garage</ion-title>
+            </ion-toolbar>
+        </ion-header>
+
+        <ion-content id="main-content" :fullscreen="true">
+            <ion-header collapse="condense">
+                <ion-toolbar>
+                    <ion-title size="large">My Garage</ion-title>
+                </ion-toolbar>
+            </ion-header>
+
+            <div v-if="vehicleStore.vehicles.length === 0" class="empty-state">
+                <p>Your garage is empty.</p>
+                <p>Tap the + button to add a vehicle.</p>
+            </div>
+
+            <ion-list ref="vehicleListRef">
+                <ion-item-sliding
+                    v-for="vehicle in vehicleStore.vehicles"
+                    :key="vehicle.id"
+                >
+                    <ion-item button @click="goToVehicle(vehicle.id)">
+                        <ion-label>
+                            <h2>
+                                {{ vehicle.year }} {{ vehicle.make }}
+                                {{ vehicle.model }}
+                            </h2>
+                            <p>Plate: {{ vehicle.licensePlate }}</p>
+                        </ion-label>
+                    </ion-item>
+
+                    <ion-item-options side="end">
+                        <ion-item-option
+                            color="primary"
+                            @click="openVehicleModal(vehicle)"
+                        >
+                            Edit
+                        </ion-item-option>
+                        <ion-item-option
+                            color="danger"
+                            @click="confirmDelete(vehicle.id)"
+                        >
+                            Delete
+                        </ion-item-option>
+                    </ion-item-options>
+                </ion-item-sliding>
+            </ion-list>
+
+            <ion-fab slot="fixed" vertical="bottom" horizontal="end">
+                <ion-fab-button @click="openVehicleModal()">
+                    <ion-icon :icon="add"></ion-icon>
+                </ion-fab-button>
+            </ion-fab>
+        </ion-content>
+    </ion-page>
+</template>
 
 <style scoped>
 .empty-state {
