@@ -82,7 +82,6 @@ import { add } from "ionicons/icons";
 import { useVehicleStore } from "@/store/vehicleStore";
 import { useRouter } from "vue-router";
 import { v4 as uuidv4 } from "uuid";
-import AddVehicleModal from "@/components/AddVehicleModal.vue";
 import { Vehicle } from "@/types";
 import VehicleFormModal from "@/components/VehicleFormModal.vue";
 import { ref } from "vue";
