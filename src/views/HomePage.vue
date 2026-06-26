@@ -18,23 +18,40 @@
                 <p>Tap the + button to add a vehicle.</p>
             </div>
 
-            <ion-list v-else>
-                <ion-item
-                    v-for="car in vehicleStore.vehicles"
-                    :key="car.id"
-                    @click="goToVehicle(car.id)"
-                    button
+            <ion-list ref="vehicleListRef">
+                <ion-item-sliding
+                    v-for="vehicle in vehicleStore.vehicles"
+                    :key="vehicle.id"
                 >
-                    <ion-label>
-                        <h2>{{ car.year }} {{ car.make }} {{ car.model }}</h2>
-                        <p>Plate: {{ car.licensePlate }}</p>
-                        <p>Mileage: {{ car.currentMileage }}</p>
-                    </ion-label>
-                </ion-item>
+                    <ion-item button @click="goToVehicle(vehicle.id)">
+                        <ion-label>
+                            <h2>
+                                {{ vehicle.year }} {{ vehicle.make }}
+                                {{ vehicle.model }}
+                            </h2>
+                            <p>Plate: {{ vehicle.licensePlate }}</p>
+                        </ion-label>
+                    </ion-item>
+
+                    <ion-item-options side="end">
+                        <ion-item-option
+                            color="primary"
+                            @click="openVehicleModal(vehicle)"
+                        >
+                            Edit
+                        </ion-item-option>
+                        <ion-item-option
+                            color="danger"
+                            @click="confirmDelete(vehicle.id)"
+                        >
+                            Delete
+                        </ion-item-option>
+                    </ion-item-options>
+                </ion-item-sliding>
             </ion-list>
 
             <ion-fab slot="fixed" vertical="bottom" horizontal="end">
-                <ion-fab-button @click="openAddVehicleModal">
+                <ion-fab-button @click="openVehicleModal()">
                     <ion-icon :icon="add"></ion-icon>
                 </ion-fab-button>
             </ion-fab>
@@ -51,29 +68,43 @@ import {
     IonToolbar,
     IonList,
     IonItem,
+    IonItemOptions,
+    IonItemOption,
+    IonItemSliding,
     IonLabel,
     IonFab,
     IonFabButton,
     IonIcon,
     modalController,
+    alertController,
 } from "@ionic/vue";
 import { add } from "ionicons/icons";
 import { useVehicleStore } from "@/store/vehicleStore";
 import { useRouter } from "vue-router";
 import { v4 as uuidv4 } from "uuid";
 import AddVehicleModal from "@/components/AddVehicleModal.vue";
+import { Vehicle } from "@/types";
+import VehicleFormModal from "@/components/VehicleFormModal.vue";
+import { ref } from "vue";
 
 const router = useRouter();
 const vehicleStore = useVehicleStore();
+
+const vehicleListRef = ref<(typeof IonList & { $el: any }) | null>(null);
 
 const goToVehicle = (id: string) => {
     router.push(`/vehicle/${id}`);
 };
 
-const openAddVehicleModal = async () => {
+const openVehicleModal = async (vehicle?: Vehicle) => {
+    await vehicleListRef.value?.$el?.closeSlidingItems();
+
     const modal = await modalController.create({
-        component: AddVehicleModal,
+        component: VehicleFormModal,
         presentingElement: document.getElementById("main-content") || undefined,
+        componentProps: {
+            vehicle: vehicle,
+        },
     });
 
     await modal.present();
@@ -81,17 +112,41 @@ const openAddVehicleModal = async () => {
     const { data, role } = await modal.onWillDismiss();
 
     if (role === "confirm" && data) {
-        const newVehicle = {
-            id: uuidv4(),
-            make: data.make,
-            model: data.model,
-            year: data.year,
-            licensePlate: "N/A",
-            curentMileage: 0,
-        };
-
-        vehicleStore.addVehicle(newVehicle);
+        if (vehicle) {
+            await vehicleStore.updateVehicle(vehicle.id, data);
+        } else {
+            const newVehicle: Vehicle = {
+                id: uuidv4(),
+                ...data,
+            };
+            await vehicleStore.addVehicle(newVehicle);
+        }
     }
+};
+
+const confirmDelete = async (id: string) => {
+    await vehicleListRef.value?.$el?.closeSlidingItems();
+
+    const alert = await alertController.create({
+        header: "Delete Vehicle",
+        message:
+            "Are you sure you want to delete this vehicle? This action cannot be undone.",
+        buttons: [
+            {
+                text: "Cancel",
+                role: "cancel",
+            },
+            {
+                text: "Delete",
+                role: "destructive",
+                handler: async () => {
+                    await vehicleStore.deleteVehicle(id);
+                },
+            },
+        ],
+    });
+
+    await alert.present();
 };
 </script>
 
