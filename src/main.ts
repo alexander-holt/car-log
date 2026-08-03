@@ -6,6 +6,8 @@ import App from "./App.vue";
 import router from "./router";
 
 import { IonicVue } from "@ionic/vue";
+import { Capacitor } from "@capacitor/core";
+import { defineCustomElements as jeepSqlite } from "jeep-sqlite/loader";
 
 /* Core CSS required for Ionic components to work properly */
 import "@ionic/vue/css/core.css";
@@ -42,8 +44,22 @@ const app = createApp(App).use(IonicVue).use(router).use(pinia);
 
 async function bootstrap() {
     try {
+        // Get platfrom
+        const platform = Capacitor.getPlatform();
+        if (platform === "web") {
+            jeepSqlite(window);
+
+            // inject into dom
+            const jeepEl = document.createElement("jeep-sqlite");
+            document.body.appendChild(jeepEl);
+
+            // wait for definition
+            await customElements.whenDefined("jeep-sqlite");
+        }
+
         // Initialize DB
         await databaseService.initialize();
+
         // Initialize Pinia
         const vehicleStore = useVehicleStore(pinia);
         await vehicleStore.loadVehicles();

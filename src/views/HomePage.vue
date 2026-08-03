@@ -34,14 +34,14 @@ const goToVehicle = (id: string) => {
     router.push(`/vehicle/${id}`);
 };
 
-const openVehicleModal = async (vehicle?: Vehicle) => {
+const openVehicleModal = async (existingVehicle?: Vehicle) => {
     await vehicleListRef.value?.$el?.closeSlidingItems();
 
     const modal = await modalController.create({
         component: VehicleFormModal,
         presentingElement: document.getElementById("main-content") || undefined,
         componentProps: {
-            vehicle: vehicle,
+            vehicle: existingVehicle,
         },
     });
 
@@ -50,8 +50,8 @@ const openVehicleModal = async (vehicle?: Vehicle) => {
     const { data, role } = await modal.onWillDismiss();
 
     if (role === "confirm" && data) {
-        if (vehicle) {
-            await vehicleStore.updateVehicle(vehicle.id, data);
+        if (existingVehicle) {
+            await vehicleStore.updateVehicle(existingVehicle.id, data);
         } else {
             const newVehicle: Vehicle = {
                 id: uuidv4(),
