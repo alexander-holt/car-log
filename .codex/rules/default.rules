@@ -114,6 +114,24 @@ prefix_rule(
     justification = "Fetch remote refs without changing the working tree.",
 )
 
+prefix_rule(
+    pattern = ["git", "diff", "--cached", "--check"],
+    decision = "allow",
+    justification = "Check staged changes for whitespace errors without modifying repository state.",
+)
+
+prefix_rule(
+    pattern = ["git", "diff", "--cached"],
+    decision = "allow",
+    justification = "Inspect staged changes.",
+)
+
+prefix_rule(
+    pattern = ["git", "diff", "--check"],
+    decision = "allow",
+    justification = "Check working-tree diff for whitespace errors.",
+)
+
 
 # -----------------------------
 # Git work on feature branches
