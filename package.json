@@ -7,7 +7,7 @@
     "description": "A cross-platform vehicle maintenance and service history tracking application.",
     "repository": {
         "type": "git",
-        "url": "https://github.com/Holtster2000/car-log.git"
+        "url": "https://github.com/alexander-holt/car-log.git"
     },
     "type": "module",
     "engines": {
