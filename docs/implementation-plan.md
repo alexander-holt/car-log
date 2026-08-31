@@ -1,6 +1,6 @@
 # CarLog implementation plan
 
-Status: approved for implementation planning on August 30, 2026.
+Status: Phase 1 completed and verified on August 31, 2026. Phase 2 has not started.
 
 ## Objective
 
@@ -374,22 +374,32 @@ Reference: [Capacitor Community SQLite upgrade documentation](https://github.com
 
 ### Phase 1: stabilize development and persistence
 
-- Use Node 24 through `.nvmrc` on Windows and macOS.
-- Reinstall dependencies from `package-lock.json` with the declared Node and npm versions.
-- Confirm linting, type checking, unit tests, and build commands.
-- Keep the corrected `IF NOT EXISTS` statements and tire table naming until the new schema replaces them.
-- Add versioned migrations and the new version 1 schema.
-- Enable foreign keys explicitly.
-- Add database indexes.
-- Replace hidden startup failure with a visible error state.
-- Add a real-schema integration test that creates the database and inserts every supported service item type.
+- [x] Use Node 24 through `.nvmrc` on Windows and macOS.
+- [x] Reinstall dependencies from `package-lock.json` with the declared Node and npm versions.
+- [x] Confirm linting, type checking, unit tests, integration tests, and build commands.
+- [x] Replace startup table creation with versioned migrations and the complete version 1 schema.
+- [x] Enable foreign keys explicitly.
+- [x] Add database indexes.
+- [x] Replace hidden startup failures with a visible error state.
+- [x] Add a real-schema integration test that creates the database and exercises every supported service item type.
 
 Exit criteria:
 
-- Repeated application restarts open the same data.
-- A clean install creates the complete schema.
-- Invalid schema or insert SQL fails an automated test.
-- Lint, type checking, unit tests, integration tests, and build pass.
+- [x] Repeated application restarts open the same data.
+- [x] A clean install creates the complete schema.
+- [x] Invalid schema or insert SQL fails an automated test.
+- [x] Lint, formatting, type checking, unit tests, integration tests, and build pass.
+
+Completion record:
+
+- `src/services/databaseMigrations.ts` owns schema version 1, its constraints, and its indexes.
+- `src/services/databaseService.ts` registers migrations before opening `car_log_db` and enables foreign keys for each opened connection.
+- `tests/integration/databaseMigrations.test.ts` covers clean schema creation, every service item type, invalid inserts, foreign-key behavior, schedule uniqueness, and persistence across database restarts.
+- Startup failures render in the application instead of leaving a blank screen.
+- Browser persistence uses `jeep-sqlite`. SQL.js stays pinned to 1.11.0, and Vite copies the matching WASM module from the installed package instead of relying on a checked-in binary.
+- `tests/e2e/specs/databaseStartup.cy.ts` verifies that the browser SQLite store initializes and the application mounts without a startup error.
+- `npm run check`, the browser database startup test, and `npm run build:mobile` passed. An iOS smoke test also confirmed startup and persistence.
+- Development database reset instructions now live in `README.md`. The application does not perform destructive resets.
 
 ### Phase 2: implement service records and history
 
@@ -515,15 +525,13 @@ Exit criteria:
 
 ## Known current gaps
 
-- The existing schema creates tables directly during startup instead of using migrations.
 - The existing model supports only one maintenance type per record.
 - Record edit and delete operations are not exposed by the current UI.
 - The current next-service fields are stored on historical records and have no due-state behavior.
 - Vehicle mileage is not updated from service history.
-- Store load failures are logged but hidden from the user.
-- The current end-to-end test is still the Ionic starter test.
+- End-to-end coverage checks browser database startup, but the main service-record user journey remains for a later phase.
 - The native application ID still uses the Ionic starter value.
 
 ## Next implementation step
 
-Begin Phase 1 with a clean dependency install, then replace startup table creation with the version 1 migration and new service record schema. Reset only development databases after the migration baseline is ready.
+Review and merge the Phase 1 persistence branch without mixing in Phase 2 work. After Phase 1 reaches `main`, create `feat/phase-2-service-records` from the latest `main` and implement only the Phase 2 service record and history scope.
