@@ -52,6 +52,7 @@ async function bootstrap() {
 
             // inject into dom
             const jeepEl = document.createElement("jeep-sqlite");
+            jeepEl.setAttribute("autoSave", "true");
             document.body.appendChild(jeepEl);
 
             // wait for definition
