@@ -53,9 +53,9 @@ prefix_rule(
 )
 
 prefix_rule(
-    pattern = ["npm", "run", "dev:ios"],
+    pattern = ["npm", "run", ["dev:ios", "dev:android"]],
     decision = "prompt",
-    justification = "Starts native iOS tooling and targets a specific simulator/device.",
+    justification = "Starts native tooling and targets a simulator, emulator, or device.",
 )
 
 
