@@ -80,7 +80,9 @@ export const DATABASE_MIGRATIONS: capSQLiteVersionUpgrade[] = [
                         strftime('%Y-%m-%dT%H:%M:%fZ', 'now')
                     ),
                     CHECK (
-                        serviceType <> 'OTHER' OR length(trim(label)) > 0
+                        serviceType <> 'OTHER' OR (
+                            label IS NOT NULL AND length(trim(label)) > 0
+                        )
                     ),
                     FOREIGN KEY (vehicleId) REFERENCES vehicles(id) ON DELETE CASCADE,
                     FOREIGN KEY (lastCompletedServiceItemId)
@@ -125,7 +127,9 @@ export const DATABASE_MIGRATIONS: capSQLiteVersionUpgrade[] = [
                         strftime('%Y-%m-%dT%H:%M:%fZ', 'now')
                     ),
                     CHECK (
-                        serviceType <> 'OTHER' OR length(trim(title)) > 0
+                        serviceType <> 'OTHER' OR (
+                            title IS NOT NULL AND length(trim(title)) > 0
+                        )
                     ),
                     FOREIGN KEY (serviceRecordId)
                         REFERENCES service_records(id) ON DELETE CASCADE,

@@ -17,9 +17,11 @@
     "scripts": {
         "dev": "vite",
         "build": "vue-tsc && vite build",
+        "typecheck": "vue-tsc --noEmit",
         "preview": "vite preview",
         "test:e2e": "cypress run",
         "test:unit": "vitest",
+        "test:integration": "vitest --config vitest.integration.config.ts",
         "lint": "eslint .",
         "dev:ios": "ionic cap run ios -l --consolelogs --target=\"71A012B1-826A-4C82-88D8-8087BB05B285\" --host=localhost",
         "build:mobile": "npm run build && npx cap sync"
