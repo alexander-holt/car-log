@@ -2,6 +2,12 @@
 
 CarLog is a mobile-first maintenance log for iOS and Android. It stores vehicle and service data locally so the app remains usable without an account or network connection. Browser support exists for development and automated testing.
 
+## Purpose
+
+CarLog grew out of wanting a vehicle's complete service history available at a glance, especially when preparing to sell it.
+
+Receipts and notes tend to end up scattered through the glovebox, while reminders live on windshield stickers or random notes. CarLog keeps that history in one local digital garage.
+
 ## Project status
 
 Phase 1, development and persistence stabilization, is complete. Phase 2 will add the service record and history flows described in the [implementation plan](docs/implementation-plan.md).
@@ -23,8 +29,9 @@ Completed service records and future maintenance schedules are separate concepts
 
 - Node 24, selected through `.nvmrc`.
 - npm 11 or later.
-- Xcode on macOS for iOS development.
-- Android Studio and the Android SDK on Windows or macOS for Android development.
+- Ionic CLI 7 or later.
+- Xcode on macOS for iOS development. Follow Capacitor's [environment setup](https://capacitorjs.com/docs/getting-started/environment-setup) and [iOS guide](https://capacitorjs.com/docs/ios).
+- Android Studio and the Android SDK on Windows for Android development. Follow Capacitor's [environment setup](https://capacitorjs.com/docs/getting-started/environment-setup) and [Android guide](https://capacitorjs.com/docs/android).
 
 ## Setup
 
@@ -41,11 +48,43 @@ nvm use
 Install the locked dependencies and start the browser development server:
 
 ```sh
+npm install --global @ionic/cli
 npm ci
 npm run dev
 ```
 
 The development site runs at `http://localhost:5173` by default.
+
+## Native development
+
+The native development scripts sync the web application, deploy it to a selected simulator or emulator, and keep a live-reload server running. Stop the server with Ctrl+C.
+
+### iOS on macOS
+
+1. Install the iOS requirements linked above and open Xcode once to finish its first-run setup.
+2. Start an iOS simulator from Xcode, or let the Ionic CLI list available targets.
+3. Run:
+
+```sh
+npm run dev:ios
+```
+
+The command uses localhost live reload because the iOS simulator runs on the Mac. If several targets are available, select the intended simulator when prompted.
+
+### Android emulator on Windows
+
+1. Install the Android requirements linked above.
+2. Create and start an Android Virtual Device from Android Studio's Device Manager.
+3. Allow Node.js through the Windows firewall on private networks when prompted.
+4. Run:
+
+```sh
+npm run dev:android
+```
+
+The command uses Ionic's external live-reload address so the emulator can reach the Vite server. If several targets are available, select the intended emulator when prompted.
+
+See the [Ionic Capacitor run documentation](https://ionicframework.com/docs/cli/commands/capacitor-run) for live-reload, target, and device options.
 
 ## Browser SQLite
 
@@ -71,9 +110,16 @@ Only reset disposable development data. The application never resets a database 
 
 The version 1 migration is now the development baseline. Future schema changes must append a new migration instead of editing version 1.
 
-## Checks
+## Validation
 
-Run the full local application check before committing:
+Run focused tests while developing:
+
+```sh
+npm run test:unit -- --run
+npm run test:integration -- --run
+```
+
+`npm test` runs both suites. Before committing or opening a pull request, run the full local check:
 
 ```sh
 npm run check
@@ -98,8 +144,6 @@ Useful focused commands include:
 ```sh
 npm run lint
 npm run format:check
-npm run test:unit -- --run
-npm run test:integration -- --run
 npm run typecheck
 npm run build
 ```
