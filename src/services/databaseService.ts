@@ -94,7 +94,7 @@ class DatabaseService {
         `;
 
         const createOilChangeRecordsTableQuery = `
-            CREATE TABLE oil_change_records (
+            CREATE TABLE IF NOT EXISTS oil_change_records (
                 id TEXT PRIMARY KEY NOT NULL,
                 filterReplaced INTEGER,
                 oilType TEXT,
@@ -103,7 +103,7 @@ class DatabaseService {
         `;
 
         const createTireRotationRecordsTableQuery = `
-            CREATE TABLE tire_rotation_records (
+            CREATE TABLE IF NOT EXISTS tire_rotation_records (
                 id TEXT PRIMARY KEY,
                 treadDepthRemaining REAL,
                 FOREIGN KEY (id) REFERENCES preventative_records(id) ON DELETE CASCADE

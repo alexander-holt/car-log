@@ -134,7 +134,7 @@ export const useRecordStore = defineStore("records", () => {
                 );
             } else if (record.type === "TIRE_ROTATION") {
                 await db.run(
-                    `INSERT INTO tireRotationRecords (id, treadDepthRemaining) VALUES (?, ?);`,
+                    `INSERT INTO tire_rotation_records (id, treadDepthRemaining) VALUES (?, ?);`,
                     [record.id, record.treadDepthRemaining ?? null],
                     false,
                 );
