@@ -4,9 +4,11 @@ CarLog is a mobile-first maintenance log for iOS and Android. It stores vehicle 
 
 ## Purpose
 
-CarLog grew out of wanting a vehicle's complete service history available at a glance, especially when preparing to sell it.
+CarLog was born out of the desire to have my vehicle's complete service history available to me at a glance, especially when preparing to sell it.
 
-Receipts and notes tend to end up scattered through the glovebox, while reminders live on windshield stickers or random notes. CarLog keeps that history in one local digital garage.
+There are often a copious amount of reciepts and notes scattered in the glovebox from the last service trip, and random reminders and windshield stickers tracking the last oil change.
+
+CarLog exists to solve that problem: your one-stop centralized digital garage for logging, tracking, and planning vehicle service history.
 
 ## Project status
 
@@ -59,6 +61,8 @@ The development site runs at `http://localhost:5173` by default.
 
 The native development scripts sync the web application, deploy it to a selected simulator or emulator, and keep a live-reload server running. Stop the server with Ctrl+C.
 
+To keep a preferred simulator or emulator target outside Git, copy `.env.example` to `.env.local` and set `CARLOG_IOS_TARGET` or `CARLOG_ANDROID_TARGET`. The repository ignores `.env.local`. Leave a target empty to select from the targets listed by the Ionic CLI each time the command runs.
+
 ### iOS on macOS
 
 1. Install the iOS requirements linked above and open Xcode once to finish its first-run setup.
@@ -69,7 +73,7 @@ The native development scripts sync the web application, deploy it to a selected
 npm run dev:ios
 ```
 
-The command uses localhost live reload because the iOS simulator runs on the Mac. If several targets are available, select the intended simulator when prompted.
+The command uses localhost live reload because the iOS simulator runs on the Mac. It uses `CARLOG_IOS_TARGET` when configured; otherwise, select the intended simulator when prompted.
 
 ### Android emulator on Windows
 
@@ -82,7 +86,7 @@ The command uses localhost live reload because the iOS simulator runs on the Mac
 npm run dev:android
 ```
 
-The command uses Ionic's external live-reload address so the emulator can reach the Vite server. If several targets are available, select the intended emulator when prompted.
+The command uses Ionic's external live-reload address so the emulator can reach the Vite server. It uses `CARLOG_ANDROID_TARGET` when configured; otherwise, select the intended emulator when prompted.
 
 See the [Ionic Capacitor run documentation](https://ionicframework.com/docs/cli/commands/capacitor-run) for live-reload, target, and device options.
 
