@@ -21,8 +21,8 @@ The app targets iOS and Android. Browser support is for development until cloud 
 - Local data must remain usable without an account or network connection.
 - A completed service record is historical data. A maintenance schedule is future work. Store and manage them separately.
 - DIY work and shop work use the same record model.
-- Users control maintenance intervals. Manufacturer recommendations may prefill a schedule later, but they must not silently create or change one.
-- The app must not require location access for its core reminder flow.
+- Users control maintenance intervals. Manufacturer recommendations from service visits must not silently create or change shedules without user approval.
+- The app must not require location access for its core reminder flow. If needed, will consider drive detection for more timely mileage update reminders while users are still in sight of their odometer.
 - Prefer explicit migrations and tested SQL over schema creation during every startup.
 
 ## Scope of the first usable release
