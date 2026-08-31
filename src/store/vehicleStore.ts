@@ -15,6 +15,7 @@ export const useVehicleStore = defineStore("vehicles", () => {
             vehicles.value = response.values || [];
         } catch (error) {
             console.error("Error loading vehicles from database:", error);
+            throw error;
         }
     }
 
