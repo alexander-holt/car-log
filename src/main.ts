@@ -8,6 +8,7 @@ import router from "./router";
 import { IonicVue } from "@ionic/vue";
 import { Capacitor } from "@capacitor/core";
 import { defineCustomElements as jeepSqlite } from "jeep-sqlite/loader";
+import { setBootstrapError } from "./services/bootstrapState";
 
 /* Core CSS required for Ionic components to work properly */
 import "@ionic/vue/css/core.css";
@@ -65,6 +66,7 @@ async function bootstrap() {
         await vehicleStore.loadVehicles();
     } catch (error) {
         console.error("Critical boot error:", error);
+        setBootstrapError(error);
     } finally {
         router.isReady().then(() => {
             app.mount("#app");
