@@ -54,6 +54,7 @@
     - `docs:` documentation
 
 - Do not commit unrelated user changes.
+- Before committing, review `git status` and stage only files related to the current task. Do not use `git add -A` or `git add .` when unrelated working-tree changes are present.
 
 ## Change rules
 

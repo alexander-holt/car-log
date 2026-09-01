@@ -1,7 +1,7 @@
 import js from "@eslint/js";
+import eslintConfigPrettier from "eslint-config-prettier/flat";
 import pluginVue from "eslint-plugin-vue";
 import vueTsEslintConfig from "@vue/eslint-config-typescript";
-import prettierRecommended from "eslint-plugin-prettier/recommended";
 import globals from "globals";
 
 export default [
@@ -37,7 +37,6 @@ export default [
     js.configs.recommended,
     ...pluginVue.configs["flat/recommended"],
     ...vueTsEslintConfig(),
-    prettierRecommended,
     {
         languageOptions: {
             ecmaVersion: 2020,
@@ -98,4 +97,5 @@ export default [
             ],
         },
     },
+    eslintConfigPrettier,
 ];

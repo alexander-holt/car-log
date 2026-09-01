@@ -1,0 +1,215 @@
+# -----------------------------
+# npm / project verification
+# -----------------------------
+
+prefix_rule(
+    pattern = ["npm", "ci"],
+    decision = "allow",
+    justification = "Restore dependencies exactly from package-lock.json.",
+)
+
+prefix_rule(
+    pattern = [
+        "npm",
+        "run",
+        [
+            "lint",
+            "typecheck",
+            "format:check",
+            "test",
+            "test:unit",
+            "test:integration",
+            "test:e2e",
+            "build",
+            "check",
+        ],
+    ],
+    decision = "allow",
+    justification = "Allow non-mutating project verification and build scripts.",
+)
+
+# Development servers are safe enough to run, but may stay open.
+prefix_rule(
+    pattern = ["npm", "run", ["dev", "preview"]],
+    decision = "allow",
+    justification = "Allow local development and preview servers.",
+)
+
+
+# -----------------------------
+# Mutating npm scripts
+# -----------------------------
+
+prefix_rule(
+    pattern = ["npm", "run", ["lint:fix", "format", "fix"]],
+    decision = "prompt",
+    justification = "These scripts modify source files.",
+)
+
+prefix_rule(
+    pattern = ["npm", "run", "build:mobile"],
+    decision = "prompt",
+    justification = "Capacitor sync may modify generated Android/iOS project files.",
+)
+
+prefix_rule(
+    pattern = ["npm", "run", ["dev:ios", "dev:android"]],
+    decision = "prompt",
+    justification = "Starts native tooling and targets a simulator, emulator, or device.",
+)
+
+
+# -----------------------------
+# Dependency changes
+# -----------------------------
+
+prefix_rule(
+    pattern = ["npm", "install"],
+    decision = "prompt",
+    justification = "npm install can modify the dependency graph or lockfile.",
+)
+
+prefix_rule(
+    pattern = ["npm", "uninstall"],
+    decision = "prompt",
+    justification = "Removing dependencies changes the dependency graph.",
+)
+
+prefix_rule(
+    pattern = ["npm", "update"],
+    decision = "prompt",
+    justification = "Updating packages can change many dependency versions.",
+)
+
+prefix_rule(
+    pattern = ["npm", "audit", "fix"],
+    decision = "prompt",
+    justification = "npm audit fix may change dependency versions.",
+)
+
+
+# -----------------------------
+# Safe Git inspection
+# -----------------------------
+
+prefix_rule(
+    pattern = [
+        "git",
+        [
+            "status",
+            "diff",
+            "log",
+            "show",
+            "branch",
+            "rev-parse",
+        ],
+    ],
+    decision = "allow",
+    justification = "Allow routine Git inspection.",
+)
+
+prefix_rule(
+    pattern = ["git", "fetch"],
+    decision = "allow",
+    justification = "Fetch remote refs without changing the working tree.",
+)
+
+prefix_rule(
+    pattern = ["git", "diff", "--cached", "--check"],
+    decision = "allow",
+    justification = "Check staged changes for whitespace errors without modifying repository state.",
+)
+
+prefix_rule(
+    pattern = ["git", "diff", "--cached"],
+    decision = "allow",
+    justification = "Inspect staged changes.",
+)
+
+prefix_rule(
+    pattern = ["git", "diff", "--check"],
+    decision = "allow",
+    justification = "Check working-tree diff for whitespace errors.",
+)
+
+
+# -----------------------------
+# Git work on feature branches
+# -----------------------------
+
+prefix_rule(
+    pattern = ["git", "add"],
+    decision = "allow",
+    justification = "Allow staging task-related changes.",
+)
+
+prefix_rule(
+    pattern = ["git", "commit"],
+    decision = "allow",
+    justification = "Allow logical local commits during implementation.",
+)
+
+prefix_rule(
+    pattern = ["git", "switch"],
+    decision = "allow",
+    justification = "Allow switching between known project branches.",
+)
+
+prefix_rule(
+    pattern = ["git", "checkout"],
+    decision = "prompt",
+    justification = "git checkout can also overwrite files, so require review.",
+)
+
+prefix_rule(
+    pattern = ["git", "push"],
+    decision = "prompt",
+    justification = "Publishing changes to the remote should remain explicit.",
+)
+
+
+# -----------------------------
+# Higher-risk Git operations
+# -----------------------------
+
+prefix_rule(
+    pattern = ["git", "merge"],
+    decision = "prompt",
+    justification = "Merging changes branch history and should be explicit.",
+)
+
+prefix_rule(
+    pattern = ["git", "rebase"],
+    decision = "prompt",
+    justification = "Rebase rewrites commit history.",
+)
+
+prefix_rule(
+    pattern = ["git", "cherry-pick"],
+    decision = "prompt",
+    justification = "Cherry-picking modifies branch history.",
+)
+
+prefix_rule(
+    pattern = ["git", "reset"],
+    decision = "prompt",
+    justification = "Reset can discard commits or working-tree changes.",
+)
+
+prefix_rule(
+    pattern = ["git", "clean"],
+    decision = "forbidden",
+    justification = "Avoid automatically deleting untracked files.",
+)
+
+prefix_rule(
+    pattern = ["git", "push", "--force"],
+    decision = "forbidden",
+    justification = "Force pushes can rewrite remote history.",
+)
+
+prefix_rule(
+    pattern = ["git", "push", "--force-with-lease"],
+    decision = "forbidden",
+    justification = "Do not allow automated remote history rewriting.",
+)

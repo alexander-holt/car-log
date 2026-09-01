@@ -55,6 +55,16 @@ describe("useVehicleStore", () => {
         expect(store.vehicles[0].make).toBe("Toyota");
     });
 
+    it("throws a vehicle load failure so startup can show it", async () => {
+        const store = useVehicleStore();
+        mockDb.query.mockRejectedValue(new Error("Database schema is invalid"));
+
+        await expect(store.loadVehicles()).rejects.toThrow(
+            "Database schema is invalid",
+        );
+        expect(store.vehicles).toEqual([]);
+    });
+
     it("adds a new vehicle and pushes it to local state", async () => {
         const store = useVehicleStore();
 

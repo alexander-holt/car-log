@@ -1,0 +1,10 @@
+/android
+/coverage
+/dist
+/ios
+/node_modules
+/package-lock.json
+/public
+/tests/e2e/screenshots
+/tests/e2e/videos
+**/*.md

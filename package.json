@@ -7,21 +7,30 @@
     "description": "A cross-platform vehicle maintenance and service history tracking application.",
     "repository": {
         "type": "git",
-        "url": "https://github.com/Holtster2000/car-log.git"
+        "url": "https://github.com/alexander-holt/car-log.git"
     },
     "type": "module",
     "engines": {
-        "node": ">=24.0.0",
+        "node": "24.x",
         "npm": ">=11.0.0"
     },
     "scripts": {
         "dev": "vite",
-        "build": "vue-tsc && vite build",
+        "build": "npm run typecheck && vite build",
+        "typecheck": "vue-tsc --noEmit",
         "preview": "vite preview",
+        "test": "npm run test:unit -- --run && npm run test:integration -- --run",
         "test:e2e": "cypress run",
         "test:unit": "vitest",
-        "lint": "eslint .",
-        "dev:ios": "ionic cap run ios -l --consolelogs --target=\"71A012B1-826A-4C82-88D8-8087BB05B285\" --host=localhost",
+        "test:integration": "vitest --config vitest.integration.config.ts",
+        "lint": "eslint . --max-warnings 0",
+        "lint:fix": "eslint . --fix",
+        "format": "prettier . --write",
+        "format:check": "prettier . --check",
+        "fix": "npm run lint:fix && npm run format",
+        "check": "npm run lint && npm run format:check && npm test && npm run build",
+        "dev:ios": "node scripts/runNative.mjs ios",
+        "dev:android": "node scripts/runNative.mjs android",
         "build:mobile": "npm run build && npx cap sync"
     },
     "dependencies": {
@@ -38,6 +47,7 @@
         "ionicons": "^8.0.13",
         "jeep-sqlite": "^2.8.0",
         "pinia": "^3.0.4",
+        "sql.js": "1.11.0",
         "uuid": "^14.0.1",
         "vue": "^3.5.39",
         "vue-router": "^5.1.0"
@@ -52,10 +62,10 @@
         "cypress": "^15.18.0",
         "eslint": "^10.5.0",
         "eslint-config-prettier": "^10.1.8",
-        "eslint-plugin-prettier": "^5.5.6",
         "eslint-plugin-vue": "^10.9.2",
         "globals": "^17.7.0",
         "jsdom": "^29.1.1",
+        "prettier": "3.8.4",
         "terser": "^5.48.0",
         "typescript": "~6.0.3",
         "vite": "^8.1.0",
