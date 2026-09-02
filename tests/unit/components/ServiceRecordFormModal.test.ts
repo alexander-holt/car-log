@@ -182,13 +182,14 @@ describe("ServiceRecordFormModal", () => {
             });
         content.getScrollElement = vi.fn().mockResolvedValue(scrollElement);
         content.scrollToPoint = vi.fn().mockResolvedValue(undefined);
-        const dismissToast = vi
-            .spyOn(toastController, "dismiss")
-            .mockResolvedValue(true);
         const presentToast = vi.fn().mockResolvedValue(undefined);
+        const dismissToast = vi.fn().mockResolvedValue(true);
         const createToast = vi
             .spyOn(toastController, "create")
-            .mockResolvedValue({ present: presentToast } as never);
+            .mockResolvedValue({
+                present: presentToast,
+                dismiss: dismissToast,
+            } as never);
 
         const saveButton = wrapper
             .findAll("button")
@@ -210,11 +211,6 @@ describe("ServiceRecordFormModal", () => {
         expect(wrapper.findAll(".service-item-panel")).toHaveLength(1);
         expect(content.getScrollElement).toHaveBeenCalledOnce();
         expect(content.scrollToPoint).toHaveBeenCalledWith(undefined, 274, 180);
-        expect(dismissToast).toHaveBeenCalledWith(
-            undefined,
-            undefined,
-            "service-record-validation",
-        );
         expect(createToast).toHaveBeenCalledWith(
             expect.objectContaining({
                 message:
@@ -224,6 +220,13 @@ describe("ServiceRecordFormModal", () => {
             }),
         );
         expect(presentToast).toHaveBeenCalledOnce();
+        expect(dismissToast).not.toHaveBeenCalled();
+
+        await saveButton?.trigger("click");
+        await flushPromises();
+        expect(dismissToast).toHaveBeenCalledOnce();
+        expect(createToast).toHaveBeenCalledTimes(2);
+        expect(presentToast).toHaveBeenCalledTimes(2);
 
         await wrapper
             .get('[data-field-path="items.0.title"] input')

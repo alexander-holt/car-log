@@ -128,6 +128,7 @@ const formRef = ref<HTMLFormElement | null>(null);
 const ISSUE_SCROLL_DURATION_MS = 180;
 const ISSUE_SCROLL_MAX_TOP_OFFSET_PX = 96;
 const VALIDATION_TOAST_ID = "service-record-validation";
+let validationToast: HTMLIonToastElement | null = null;
 
 function optionalNumber(value: string | number | null): number | undefined {
     if (value === null || String(value).trim() === "") {
@@ -323,7 +324,7 @@ async function scrollToFirstIssue(): Promise<void> {
 }
 
 async function showValidationFailureToast(): Promise<void> {
-    await toastController.dismiss(undefined, undefined, VALIDATION_TOAST_ID);
+    await dismissValidationToast();
     const toast = await toastController.create({
         id: VALIDATION_TOAST_ID,
         message: `Record not saved. ${issueSummary()}`,
@@ -331,7 +332,18 @@ async function showValidationFailureToast(): Promise<void> {
         duration: 2800,
         position: "bottom",
     });
+    validationToast = toast;
     await toast.present();
+}
+
+async function dismissValidationToast(): Promise<void> {
+    if (!validationToast) {
+        return;
+    }
+
+    const toast = validationToast;
+    validationToast = null;
+    await toast.dismiss();
 }
 
 async function saveRecord(): Promise<void> {
@@ -342,7 +354,7 @@ async function saveRecord(): Promise<void> {
         await toastPromise;
         return;
     }
-    await toastController.dismiss(undefined, undefined, VALIDATION_TOAST_ID);
+    await dismissValidationToast();
     void modalController.dismiss(buildRecord(), "confirm");
 }
 </script>
