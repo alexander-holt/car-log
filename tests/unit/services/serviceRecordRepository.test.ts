@@ -190,6 +190,18 @@ describe("service record repository", () => {
         expect(commitTransaction).toHaveBeenCalledOnce();
     });
 
+    it("rolls back when the record does not belong to the vehicle", async () => {
+        run.mockResolvedValueOnce({ changes: { changes: 0 } });
+
+        await expect(updateServiceRecord(makeRecord(), db)).rejects.toThrow(
+            "Service record was not found for this vehicle.",
+        );
+
+        expect(query).not.toHaveBeenCalled();
+        expect(rollbackTransaction).toHaveBeenCalledOnce();
+        expect(commitTransaction).not.toHaveBeenCalled();
+    });
+
     it("deletes the parent record inside a transaction", async () => {
         await deleteServiceRecord("record-1", db);
 

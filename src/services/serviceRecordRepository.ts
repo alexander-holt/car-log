@@ -357,7 +357,7 @@ export async function updateServiceRecord(
     const timestamp = new Date().toISOString();
 
     return runInTransaction(db, async () => {
-        await db.run(
+        const recordUpdate = await db.run(
             `UPDATE service_records
              SET date = ?, mileage = ?, providerType = ?, providerName = ?,
                  totalCostCents = ?, notes = ?, updatedAt = ?
@@ -375,6 +375,9 @@ export async function updateServiceRecord(
             ],
             false,
         );
+        if ((recordUpdate.changes?.changes ?? 0) === 0) {
+            throw new Error("Service record was not found for this vehicle.");
+        }
 
         const existingResponse = await db.query(
             "SELECT id FROM service_items WHERE serviceRecordId = ?;",
