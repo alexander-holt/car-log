@@ -1,5 +1,5 @@
 import { flushPromises, mount } from "@vue/test-utils";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import ServiceRecordFormModal from "@/components/ServiceRecordFormModal.vue";
 import type { ServiceRecord } from "@/types";
 
@@ -10,7 +10,7 @@ const global = {
         IonToolbar: passthrough,
         IonTitle: passthrough,
         IonButtons: passthrough,
-        IonContent: passthrough,
+        IonContent: { template: "<ion-content><slot /></ion-content>" },
         IonList: passthrough,
         IonItem: passthrough,
         IonLabel: passthrough,
@@ -161,6 +161,24 @@ describe("ServiceRecordFormModal", () => {
             },
             global,
         });
+        const content = wrapper.get("ion-content")
+            .element as HTMLIonContentElement;
+        const scrollElement = document.createElement("div");
+        scrollElement.scrollTop = 120;
+        vi.spyOn(scrollElement, "getBoundingClientRect").mockReturnValue({
+            top: 100,
+            height: 600,
+        } as DOMRect);
+        const boundsSpy = vi
+            .spyOn(HTMLElement.prototype, "getBoundingClientRect")
+            .mockImplementation(function (this: HTMLElement) {
+                if (this.dataset.fieldPath === "items.0.title") {
+                    return { top: 350, height: 50 } as DOMRect;
+                }
+                return { top: 0, height: 0 } as DOMRect;
+            });
+        content.getScrollElement = vi.fn().mockResolvedValue(scrollElement);
+        content.scrollToPoint = vi.fn().mockResolvedValue(undefined);
 
         const saveButton = wrapper
             .findAll("button")
@@ -180,5 +198,9 @@ describe("ServiceRecordFormModal", () => {
         expect(summaries[0].attributes("aria-expanded")).toBe("true");
         expect(summaries[1].attributes("aria-expanded")).toBe("false");
         expect(wrapper.findAll(".service-item-panel")).toHaveLength(1);
+        expect(content.getScrollElement).toHaveBeenCalledOnce();
+        expect(content.scrollToPoint).toHaveBeenCalledWith(undefined, 274, 180);
+
+        boundsSpy.mockRestore();
     });
 });

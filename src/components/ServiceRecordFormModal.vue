@@ -122,6 +122,10 @@ const openItemId = ref<string | null>(
     isEditMode.value ? null : (formData.items[0]?.id ?? null),
 );
 const showValidationErrors = ref(false);
+const formRef = ref<HTMLFormElement | null>(null);
+
+const ISSUE_SCROLL_DURATION_MS = 180;
+const ISSUE_SCROLL_MAX_TOP_OFFSET_PX = 96;
 
 function optionalNumber(value: string | number | null): number | undefined {
     if (value === null || String(value).trim() === "") {
@@ -268,7 +272,7 @@ function cancel(): void {
     void modalController.dismiss(null, "cancel");
 }
 
-async function focusFirstIssue(): Promise<void> {
+async function scrollToFirstIssue(): Promise<void> {
     const firstIssue = validationIssues.value[0];
     if (!firstIssue) {
         return;
@@ -281,20 +285,45 @@ async function focusFirstIssue(): Promise<void> {
     }
 
     await nextTick();
-    const field = document.querySelector<HTMLElement>(
+    const field = formRef.value?.querySelector<HTMLElement>(
         `[data-field-path="${firstIssue.path}"]`,
     );
-    field?.scrollIntoView?.({ behavior: "smooth", block: "center" });
-    const focusableField = field as
-        | (HTMLElement & { setFocus?: () => Promise<void> })
-        | null;
-    void focusableField?.setFocus?.();
+    if (!field) {
+        return;
+    }
+
+    const content = field.closest<HTMLIonContentElement>("ion-content");
+    if (!content?.getScrollElement || !content.scrollToPoint) {
+        field.scrollIntoView({ behavior: "auto", block: "center" });
+        return;
+    }
+
+    const scrollElement = await content.getScrollElement();
+    const scrollBounds = scrollElement.getBoundingClientRect();
+    const fieldBounds = field.getBoundingClientRect();
+    const topOffset = Math.min(
+        ISSUE_SCROLL_MAX_TOP_OFFSET_PX,
+        scrollBounds.height * 0.18,
+    );
+    const destination = Math.max(
+        0,
+        scrollElement.scrollTop +
+            fieldBounds.top -
+            scrollBounds.top -
+            topOffset,
+    );
+
+    await content.scrollToPoint(
+        undefined,
+        destination,
+        ISSUE_SCROLL_DURATION_MS,
+    );
 }
 
 async function saveRecord(): Promise<void> {
     showValidationErrors.value = true;
     if (!isFormValid.value) {
-        await focusFirstIssue();
+        await scrollToFirstIssue();
         return;
     }
     void modalController.dismiss(buildRecord(), "confirm");
@@ -319,7 +348,11 @@ async function saveRecord(): Promise<void> {
     </ion-header>
 
     <ion-content>
-        <form class="service-record-form" @submit.prevent="saveRecord">
+        <form
+            ref="formRef"
+            class="service-record-form"
+            @submit.prevent="saveRecord"
+        >
             <div
                 v-if="showValidationErrors && !isFormValid"
                 class="validation-summary"
