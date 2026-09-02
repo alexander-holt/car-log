@@ -1,6 +1,7 @@
-import { mount } from "@vue/test-utils";
+import { flushPromises, mount } from "@vue/test-utils";
 import { describe, expect, it } from "vitest";
 import ServiceRecordFormModal from "@/components/ServiceRecordFormModal.vue";
+import type { ServiceRecord } from "@/types";
 
 const passthrough = { template: "<div><slot /></div>" };
 const global = {
@@ -20,10 +21,7 @@ const global = {
         IonSelectOption: passthrough,
         IonTextarea: passthrough,
         IonToggle: passthrough,
-        IonCard: passthrough,
-        IonCardHeader: passthrough,
-        IonCardTitle: passthrough,
-        IonCardContent: passthrough,
+        IonIcon: true,
         IonButton: {
             props: ["disabled"],
             emits: ["click"],
@@ -32,13 +30,37 @@ const global = {
         },
         IonInput: {
             props: ["label"],
-            template: "<label>{{ label }}</label>",
+            template: "<label>{{ label }}<slot /></label>",
         },
     },
 };
 
+const editRecord: ServiceRecord = {
+    id: "record-1",
+    vehicleId: "vehicle-1",
+    date: "2026-08-31",
+    mileage: 45_000,
+    providerType: "SHOP",
+    providerName: "Honest Auto",
+    items: [
+        {
+            id: "oil",
+            serviceRecordId: "record-1",
+            serviceType: "OIL_CHANGE",
+            title: "Synthetic service",
+            filterReplaced: true,
+        },
+        {
+            id: "inspection",
+            serviceRecordId: "record-1",
+            serviceType: "INSPECTION",
+            title: "Annual inspection",
+        },
+    ],
+};
+
 describe("ServiceRecordFormModal", () => {
-    it("offers every service category and allows several items", async () => {
+    it("offers every service category and opens newly added services", async () => {
         const wrapper = mount(ServiceRecordFormModal, {
             props: { vehicleId: "vehicle-1", currentMileage: 0 },
             global,
@@ -52,15 +74,19 @@ describe("ServiceRecordFormModal", () => {
         expect(wrapper.text()).toContain("Inspection");
         expect(wrapper.text()).toContain("Repair");
         expect(wrapper.text()).toContain("Other");
+        expect(wrapper.findAll(".service-item-panel")).toHaveLength(1);
 
         const addButton = wrapper
             .findAll("button")
-            .find((button) => button.text().includes("Add service item"));
+            .find((button) => button.text().includes("Add another service"));
         expect(addButton).toBeDefined();
         await addButton?.trigger("click");
 
-        expect(wrapper.text()).toContain("Item 2");
-        expect(wrapper.findAll(".service-item-card")).toHaveLength(2);
+        const summaries = wrapper.findAll(".service-item-summary");
+        expect(summaries).toHaveLength(2);
+        expect(summaries[0].attributes("aria-expanded")).toBe("false");
+        expect(summaries[1].attributes("aria-expanded")).toBe("true");
+        expect(wrapper.findAll(".service-item-panel")).toHaveLength(1);
     });
 
     it("allows a valid DIY record with no provider name", () => {
@@ -71,11 +97,88 @@ describe("ServiceRecordFormModal", () => {
 
         expect(wrapper.text()).toContain("DIY");
         expect(wrapper.text()).toContain("Shop");
-        expect(wrapper.text()).toContain("Person name (optional)");
+        expect(wrapper.text()).toContain("Person name");
+        expect(wrapper.text()).not.toContain("Person name (optional)");
 
         const saveButton = wrapper
             .findAll("button")
-            .find((button) => button.text().includes("Save service record"));
+            .find((button) => button.text().trim() === "Save");
+        expect(saveButton).toBeDefined();
         expect(saveButton?.attributes("disabled")).toBeUndefined();
+    });
+
+    it("keeps one existing service open and removes it with a trash action", async () => {
+        const wrapper = mount(ServiceRecordFormModal, {
+            props: {
+                vehicleId: "vehicle-1",
+                currentMileage: 45_000,
+                record: editRecord,
+            },
+            global,
+        });
+        const summaries = wrapper.findAll(".service-item-summary");
+
+        expect(wrapper.findAll(".service-item-panel")).toHaveLength(0);
+        await summaries[0].trigger("click");
+        expect(summaries[0].attributes("aria-expanded")).toBe("true");
+
+        await summaries[1].trigger("click");
+        expect(summaries[0].attributes("aria-expanded")).toBe("false");
+        expect(summaries[1].attributes("aria-expanded")).toBe("true");
+
+        const removeButton = wrapper.get(
+            'button[aria-label="Remove inspection"]',
+        );
+        await removeButton.trigger("click");
+
+        expect(wrapper.findAll(".service-item-card")).toHaveLength(1);
+        expect(wrapper.find(".remove-item-button").exists()).toBe(false);
+    });
+
+    it("opens the first invalid service and marks every invalid summary", async () => {
+        const invalidRecord: ServiceRecord = {
+            ...editRecord,
+            items: [
+                {
+                    id: "other-1",
+                    serviceRecordId: "record-1",
+                    serviceType: "OTHER",
+                    title: "",
+                },
+                {
+                    id: "other-2",
+                    serviceRecordId: "record-1",
+                    serviceType: "OTHER",
+                    title: " ",
+                },
+            ],
+        };
+        const wrapper = mount(ServiceRecordFormModal, {
+            props: {
+                vehicleId: "vehicle-1",
+                currentMileage: 45_000,
+                record: invalidRecord,
+            },
+            global,
+        });
+
+        const saveButton = wrapper
+            .findAll("button")
+            .find((button) => button.text().trim() === "Save");
+        await saveButton?.trigger("click");
+        await flushPromises();
+
+        expect(wrapper.get(".validation-summary").text()).toContain(
+            "2 fields need attention. 2 services have errors.",
+        );
+        expect(
+            wrapper
+                .findAll(".item-issue-count")
+                .map((issue) => issue.text().replace(/\s+/g, " ").trim()),
+        ).toEqual(["1 issue", "1 issue"]);
+        const summaries = wrapper.findAll(".service-item-summary");
+        expect(summaries[0].attributes("aria-expanded")).toBe("true");
+        expect(summaries[1].attributes("aria-expanded")).toBe("false");
+        expect(wrapper.findAll(".service-item-panel")).toHaveLength(1);
     });
 });
