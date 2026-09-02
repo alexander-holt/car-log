@@ -73,7 +73,7 @@ describe("useVehicleStore", () => {
             make: "Ford",
             model: "F-150",
             year: 2021,
-            vin: "1FTEW1E",
+            vin: "1FTFW1E50MFA00001",
             licensePlate: "ABC-1234",
             engineType: "V6",
             currentMileage: 50000,
@@ -91,10 +91,11 @@ describe("useVehicleStore", () => {
             "Ford",
             "F-150",
             2021,
-            "1FTEW1E",
+            "1FTFW1E50MFA00001",
             "ABC-1234",
             "V6",
             50000,
+            expect.any(String),
         ]);
 
         // Verify local state includes the new vehicle
@@ -138,12 +139,31 @@ describe("useVehicleStore", () => {
             null,
             null,
             45000,
+            expect.any(String),
+            expect.any(String),
             "v1",
         ]);
 
         // Verify local state reflects the changes
         expect(store.vehicles[0].model).toBe("Camry SE");
         expect(store.vehicles[0].currentMileage).toBe(45000);
+        expect(store.vehicles[0].mileageUpdatedAt).toEqual(expect.any(String));
+    });
+
+    it("rejects invalid VIN and mileage values before writing", async () => {
+        const store = useVehicleStore();
+
+        await expect(
+            store.addVehicle({
+                id: "invalid",
+                make: "Honda",
+                model: "Civic",
+                year: 2020,
+                vin: "INVALIDVIN",
+                currentMileage: 1.5,
+            }),
+        ).rejects.toThrow("Mileage must be a whole number zero or greater.");
+        expect(mockDb.run).not.toHaveBeenCalled();
     });
 
     it("deletes a vehicle from the database and local state", async () => {
