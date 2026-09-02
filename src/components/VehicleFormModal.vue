@@ -11,8 +11,14 @@ import {
     IonList,
     IonItem,
     IonInput,
+    IonNote,
 } from "@ionic/vue";
 import { Vehicle } from "../types";
+import {
+    normalizeOptionalText,
+    normalizeVin,
+    validateVehicle,
+} from "@/services/serviceRecordValidation";
 
 const props = defineProps<{
     vehicle?: Vehicle;
@@ -27,23 +33,45 @@ const formData = reactive({
     vin: props.vehicle?.vin || "",
     licensePlate: props.vehicle?.licensePlate || "",
     engineType: props.vehicle?.engineType || "",
-    currentMileage: props.vehicle?.currentMileage || null,
+    currentMileage: props.vehicle?.currentMileage ?? null,
 });
 
-const isFormValid = computed(() => {
-    return (
-        formData.make.trim() !== "" &&
-        formData.model.trim() !== "" &&
-        formData.year > 1885
-    );
+const normalizedVehicle = computed<Omit<Vehicle, "id">>(() => {
+    const mileage =
+        formData.currentMileage === null ||
+        String(formData.currentMileage).trim() === ""
+            ? undefined
+            : Number(formData.currentMileage);
+
+    return {
+        make: formData.make.trim(),
+        model: formData.model.trim(),
+        year: Number(formData.year),
+        vin: normalizeVin(formData.vin),
+        licensePlate: normalizeOptionalText(formData.licensePlate),
+        engineType: normalizeOptionalText(formData.engineType),
+        currentMileage: mileage,
+        mileageUpdatedAt: props.vehicle?.mileageUpdatedAt,
+        mileageReminderIntervalDays: props.vehicle?.mileageReminderIntervalDays,
+        mileageRemindersEnabled: props.vehicle?.mileageRemindersEnabled,
+    };
 });
+
+const validationIssues = computed(() =>
+    validateVehicle(normalizedVehicle.value),
+);
+
+const isFormValid = computed(() => validationIssues.value.length === 0);
+
+const errorFor = (path: string) =>
+    validationIssues.value.find((issue) => issue.path === path)?.message;
 
 const cancel = () => {
     modalController.dismiss(null, "cancel");
 };
 
 const saveVehicle = () => {
-    modalController.dismiss(formData, "confirm");
+    modalController.dismiss(normalizedVehicle.value, "confirm");
 };
 </script>
 
@@ -69,6 +97,13 @@ const saveVehicle = () => {
                     required
                 ></ion-input>
             </ion-item>
+            <ion-note
+                v-if="errorFor('make')"
+                color="danger"
+                class="field-error"
+            >
+                {{ errorFor("make") }}
+            </ion-note>
             <ion-item>
                 <ion-input
                     v-model="formData.model"
@@ -77,6 +112,13 @@ const saveVehicle = () => {
                     required
                 ></ion-input>
             </ion-item>
+            <ion-note
+                v-if="errorFor('model')"
+                color="danger"
+                class="field-error"
+            >
+                {{ errorFor("model") }}
+            </ion-note>
             <ion-item>
                 <ion-input
                     v-model="formData.year"
@@ -86,6 +128,13 @@ const saveVehicle = () => {
                     required
                 ></ion-input>
             </ion-item>
+            <ion-note
+                v-if="errorFor('year')"
+                color="danger"
+                class="field-error"
+            >
+                {{ errorFor("year") }}
+            </ion-note>
             <ion-item>
                 <ion-input
                     v-model="formData.vin"
@@ -93,6 +142,9 @@ const saveVehicle = () => {
                     label-placement="floating"
                 ></ion-input>
             </ion-item>
+            <ion-note v-if="errorFor('vin')" color="danger" class="field-error">
+                {{ errorFor("vin") }}
+            </ion-note>
             <ion-item>
                 <ion-input
                     v-model="formData.licensePlate"
@@ -100,6 +152,13 @@ const saveVehicle = () => {
                     label-placement="floating"
                 ></ion-input>
             </ion-item>
+            <ion-note
+                v-if="errorFor('currentMileage')"
+                color="danger"
+                class="field-error"
+            >
+                {{ errorFor("currentMileage") }}
+            </ion-note>
             <ion-item>
                 <ion-input
                     v-model="formData.engineType"
@@ -128,3 +187,10 @@ const saveVehicle = () => {
         </ion-button>
     </ion-content>
 </template>
+
+<style scoped>
+.field-error {
+    display: block;
+    margin: 0.25rem 1rem 0.75rem;
+}
+</style>
