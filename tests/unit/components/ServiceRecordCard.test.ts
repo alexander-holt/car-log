@@ -3,23 +3,11 @@ import { describe, expect, it } from "vitest";
 import ServiceRecordCard from "@/components/ServiceRecordCard.vue";
 import type { ServiceRecord } from "@/types";
 
-const passthrough = { template: "<div><slot /></div>" };
 const global = {
     stubs: {
-        IonCard: passthrough,
-        IonCardHeader: passthrough,
-        IonCardTitle: passthrough,
-        IonCardSubtitle: passthrough,
-        IonCardContent: passthrough,
-        IonChip: { template: '<span class="chip"><slot /></span>' },
-        IonIcon: true,
-        IonList: passthrough,
-        IonItem: passthrough,
-        IonLabel: passthrough,
-        IonButtons: passthrough,
-        IonButton: {
-            emits: ["click"],
-            template: "<button @click=\"$emit('click')\"><slot /></button>",
+        IonIcon: {
+            props: ["icon"],
+            template: '<span class="icon" aria-hidden="true" />',
         },
     },
 };
@@ -32,6 +20,7 @@ const record: ServiceRecord = {
     providerType: "SHOP",
     providerName: "Honest Auto",
     totalCostCents: 20_000,
+    notes: "A long record note belongs on the detail screen.",
     items: [
         {
             id: "oil",
@@ -57,44 +46,55 @@ const record: ServiceRecord = {
 };
 
 describe("ServiceRecordCard", () => {
-    it("renders one record card with a chip for every item", () => {
+    it("renders one compact record card with a chip for every item", () => {
         const wrapper = mount(ServiceRecordCard, {
             props: { record },
             global,
         });
 
         expect(wrapper.findAll(".service-record-card")).toHaveLength(1);
-        expect(wrapper.findAll(".chip").map((chip) => chip.text())).toEqual([
-            "Oil change",
-            "Repair",
-            "Other",
-        ]);
+        expect(
+            wrapper.findAll(".service-chip").map((chip) => chip.text().trim()),
+        ).toEqual(["Oil change", "Repair", "Other"]);
         expect(wrapper.text()).toContain("45,000 mi");
-        expect(wrapper.text()).toContain("Honest Auto");
+        expect(wrapper.text()).toContain("Shop · Honest Auto");
         expect(wrapper.text()).toContain("$200.00");
+        expect(wrapper.find(".record-note-preview").text()).toContain(
+            record.notes,
+        );
     });
 
-    it("shows every item detail and emits edit and delete actions", async () => {
+    it("opens the full record without duplicating item details on the card", async () => {
         const wrapper = mount(ServiceRecordCard, {
             props: { record },
             global,
         });
-        const buttons = wrapper.findAll("button");
 
-        await buttons
-            .find((button) => button.text() === "View details")
-            ?.trigger("click");
-        expect(wrapper.text()).toContain("0W-20");
-        expect(wrapper.text()).toContain("Serpentine belt");
-        expect(wrapper.text()).toContain("Differential fluid");
+        expect(wrapper.text()).not.toContain("0W-20");
+        expect(wrapper.text()).not.toContain("Serpentine belt");
+        expect(wrapper.text()).not.toContain("Differential fluid");
 
-        await buttons
-            .find((button) => button.text() === "Edit")
-            ?.trigger("click");
-        await buttons
-            .find((button) => button.text() === "Delete")
-            ?.trigger("click");
-        expect(wrapper.emitted("edit")?.[0]).toEqual([record]);
-        expect(wrapper.emitted("delete")?.[0]).toEqual([record]);
+        await wrapper.get(".record-card-button").trigger("click");
+
+        expect(wrapper.emitted("open")?.[0]).toEqual([record]);
+        expect(
+            wrapper.get(".record-card-button").attributes("aria-label"),
+        ).toMatch(/Open service record/);
+    });
+
+    it("renders DIY records without a dangling provider separator", () => {
+        const wrapper = mount(ServiceRecordCard, {
+            props: {
+                record: {
+                    ...record,
+                    providerType: "DIY",
+                    providerName: undefined,
+                },
+            },
+            global,
+        });
+
+        expect(wrapper.find(".record-visit").text()).toContain("DIY");
+        expect(wrapper.find(".record-visit").text()).not.toContain("DIY ·");
     });
 });

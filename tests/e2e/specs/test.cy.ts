@@ -1,6 +1,9 @@
-describe("My First Test", () => {
-    it("Visits the app root url", () => {
+describe("CarLog root route", () => {
+    it("redirects to My Garage", () => {
         cy.visit("/");
-        cy.contains("#container", "Ready to create an app?");
+
+        cy.location("pathname").should("eq", "/home");
+        cy.contains("ion-title", "My Garage").should("exist");
+        cy.contains("Ready to create an app?").should("not.exist");
     });
 });

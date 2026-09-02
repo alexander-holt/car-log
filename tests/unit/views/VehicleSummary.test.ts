@@ -9,8 +9,11 @@ import { useVehicleStore } from "@/store/vehicleStore";
 import { createServiceRecord } from "@/services/serviceRecordRepository";
 import type { ServiceRecord } from "@/types";
 
+const routerPush = vi.hoisted(() => vi.fn());
+
 vi.mock("vue-router", () => ({
     useRoute: () => ({ params: { id: "vehicle-1" } }),
+    useRouter: () => ({ push: routerPush }),
 }));
 
 vi.mock("@/services/serviceRecordRepository", async (importOriginal) => {
@@ -57,7 +60,10 @@ const global = {
                 '<button data-testid="add-record" :disabled="disabled" @click="$emit(\'click\')"><slot /></button>',
         },
         ServiceRecordCard: {
-            template: '<article data-testid="record-card" />',
+            props: ["record"],
+            emits: ["open"],
+            template:
+                '<button data-testid="record-card" @click="$emit(\'open\', record)" />',
         },
     },
 };
@@ -140,5 +146,21 @@ describe("VehicleSummary", () => {
             }),
         );
         expect(presentToast).toHaveBeenCalledOnce();
+    });
+
+    it("opens a service record on its dedicated route", async () => {
+        const store = useServiceRecordStore();
+        store.records = [record];
+        const wrapper = mount(VehicleSummary, { global });
+
+        await wrapper.get('[data-testid="record-card"]').trigger("click");
+
+        expect(routerPush).toHaveBeenCalledWith({
+            name: "ServiceRecordDetail",
+            params: {
+                vehicleId: "vehicle-1",
+                recordId: "record-1",
+            },
+        });
     });
 });
