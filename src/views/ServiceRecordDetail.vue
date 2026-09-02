@@ -416,7 +416,6 @@ async function openRecordActions(): Promise<void> {
     font-weight: 650;
 }
 
-.record-meta:first-child span,
 .record-provider {
     color: var(--cl-text-muted);
 }
@@ -427,7 +426,7 @@ async function openRecordActions(): Promise<void> {
 
 .record-provider strong {
     color: var(--cl-text);
-    font-weight: 650;
+    font-weight: 500;
     white-space: nowrap;
 }
 

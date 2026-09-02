@@ -127,8 +127,8 @@ function recordAriaLabel(): string {
 }
 
 .record-timing span {
-    color: var(--cl-text-muted);
-    font-weight: 550;
+    color: var(--cl-text);
+    font-weight: inherit;
     white-space: nowrap;
 }
 
@@ -140,7 +140,7 @@ function recordAriaLabel(): string {
 
 .record-cost {
     color: var(--cl-text);
-    font-weight: 650;
+    font-weight: 500;
     white-space: nowrap;
 }
 
