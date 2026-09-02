@@ -70,11 +70,26 @@ describe("HomePage", () => {
 
         expect(wrapper.text()).toContain("2020 Honda Civic");
         expect(wrapper.text()).toContain("45,000 mi");
-        expect(wrapper.text()).toContain("Plate CARLOG");
+        expect(wrapper.get(".vehicle-plate").text()).toBe("CARLOG");
+        expect(wrapper.get(".vehicle-plate").attributes("aria-label")).toBe(
+            "License plate CARLOG",
+        );
+        expect(wrapper.get(".vehicle-meta").text()).toBe("45,000 mi");
+        expect(wrapper.text()).not.toContain("Plate CARLOG");
 
         await wrapper.get(".vehicle-card").trigger("click");
 
         expect(routerPush).toHaveBeenCalledWith("/vehicle/vehicle-1");
+    });
+
+    it("uses the vehicle icon when no license plate is saved", () => {
+        useVehicleStore().vehicles[0].licensePlate = undefined;
+
+        const wrapper = mount(HomePage, { global });
+
+        expect(wrapper.find(".vehicle-plate").exists()).toBe(false);
+        expect(wrapper.find(".vehicle-icon").exists()).toBe(true);
+        expect(wrapper.get(".vehicle-meta").text()).toBe("45,000 mi");
     });
 
     it("keeps swipe editing and confirms the saved update", async () => {

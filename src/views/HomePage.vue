@@ -189,7 +189,17 @@ async function confirmDelete(id: string): Promise<void> {
                             :detail="false"
                             @click="goToVehicle(vehicle.id)"
                         >
-                            <span slot="start" class="vehicle-icon">
+                            <span
+                                v-if="vehicle.licensePlate"
+                                slot="start"
+                                class="vehicle-plate"
+                                :aria-label="`License plate ${vehicle.licensePlate}`"
+                            >
+                                <span aria-hidden="true">
+                                    {{ vehicle.licensePlate }}
+                                </span>
+                            </span>
+                            <span v-else slot="start" class="vehicle-icon">
                                 <ion-icon
                                     aria-hidden="true"
                                     :icon="carSportOutline"
@@ -200,21 +210,17 @@ async function confirmDelete(id: string): Promise<void> {
                                     {{ vehicle.year }} {{ vehicle.make }}
                                     {{ vehicle.model }}
                                 </h2>
-                                <p class="vehicle-meta">
+                                <p
+                                    v-if="
+                                        mileageLabel(vehicle) ||
+                                        !vehicle.licensePlate
+                                    "
+                                    class="vehicle-meta"
+                                >
                                     <span v-if="mileageLabel(vehicle)">
                                         {{ mileageLabel(vehicle) }}
                                     </span>
-                                    <span v-if="vehicle.licensePlate">
-                                        Plate {{ vehicle.licensePlate }}
-                                    </span>
-                                    <span
-                                        v-if="
-                                            !mileageLabel(vehicle) &&
-                                            !vehicle.licensePlate
-                                        "
-                                    >
-                                        Details not entered
-                                    </span>
+                                    <span v-else>Details not entered</span>
                                 </p>
                             </ion-label>
                             <ion-icon
@@ -304,6 +310,36 @@ async function confirmDelete(id: string): Promise<void> {
     font-size: 1.375rem;
 }
 
+.vehicle-plate {
+    display: grid;
+    width: 4.25rem;
+    height: 2.5rem;
+    min-width: 4.25rem;
+    margin-inline-end: 0.875rem;
+    place-items: center;
+    padding-inline: 0.375rem;
+    overflow: hidden;
+    border: 1.5px solid var(--cl-accent);
+    border-radius: 0.375rem;
+    background: var(--cl-accent-soft);
+    color: var(--cl-accent);
+    font-family:
+        ui-monospace, "SFMono-Regular", "SF Mono", Menlo, Consolas, monospace;
+    font-size: 0.75rem;
+    font-variant-numeric: tabular-nums;
+    font-weight: 750;
+    letter-spacing: 0.06em;
+    line-height: 1;
+    text-transform: uppercase;
+}
+
+.vehicle-plate span {
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
 .vehicle-name {
     margin: 0;
     color: var(--cl-text);
@@ -320,11 +356,6 @@ async function confirmDelete(id: string): Promise<void> {
     color: var(--cl-text-muted);
     font-size: 0.875rem;
     font-variant-numeric: tabular-nums;
-}
-
-.vehicle-meta span + span::before {
-    margin-right: 0.5rem;
-    content: "·";
 }
 
 .vehicle-chevron {
