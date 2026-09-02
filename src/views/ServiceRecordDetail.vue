@@ -76,7 +76,7 @@ function hasStructuredDetails(item: ServiceItem): boolean {
 
 async function showToast(
     message: string,
-    color: "success" | "danger",
+    color: "primary" | "danger",
 ): Promise<void> {
     const toast = await toastController.create({
         message,
@@ -128,7 +128,7 @@ async function openEditModal(): Promise<void> {
     saving.value = true;
     try {
         await recordStore.updateRecord(data);
-        await showToast("Service record updated.", "success");
+        await showToast("Service record updated.", "primary");
     } catch (error) {
         await showToast(
             `Could not update service record. ${messageFor(error)}`,
@@ -148,7 +148,7 @@ async function deleteRecord(): Promise<void> {
     saving.value = true;
     try {
         await recordStore.deleteRecord(currentRecord.id);
-        await showToast("Service record deleted.", "success");
+        await showToast("Service record deleted.", "primary");
         await router.replace(`/vehicle/${vehicleId}`);
     } catch (error) {
         await showToast(

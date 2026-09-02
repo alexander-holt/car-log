@@ -142,7 +142,7 @@ describe("VehicleSummary", () => {
         expect(toastSpy).toHaveBeenCalledWith(
             expect.objectContaining({
                 message: "Service record saved.",
-                color: "success",
+                color: "primary",
             }),
         );
         expect(presentToast).toHaveBeenCalledOnce();

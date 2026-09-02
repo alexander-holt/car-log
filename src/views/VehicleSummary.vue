@@ -45,7 +45,7 @@ function messageFor(error: unknown): string {
 
 async function showToast(
     message: string,
-    color: "success" | "danger",
+    color: "primary" | "danger",
 ): Promise<void> {
     const toast = await toastController.create({
         message,
@@ -92,7 +92,7 @@ async function openRecordModal(): Promise<void> {
     saving.value = true;
     try {
         await recordStore.addRecord(data);
-        await showToast("Service record saved.", "success");
+        await showToast("Service record saved.", "primary");
     } catch (error) {
         await showToast(
             `Could not save service record. ${messageFor(error)}`,

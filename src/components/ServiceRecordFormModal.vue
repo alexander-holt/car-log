@@ -19,6 +19,7 @@ import {
     IonToggle,
     IonToolbar,
     modalController,
+    toastController,
 } from "@ionic/vue";
 import {
     addOutline,
@@ -126,6 +127,7 @@ const formRef = ref<HTMLFormElement | null>(null);
 
 const ISSUE_SCROLL_DURATION_MS = 180;
 const ISSUE_SCROLL_MAX_TOP_OFFSET_PX = 96;
+const VALIDATION_TOAST_ID = "service-record-validation";
 
 function optionalNumber(value: string | number | null): number | undefined {
     if (value === null || String(value).trim() === "") {
@@ -320,12 +322,27 @@ async function scrollToFirstIssue(): Promise<void> {
     );
 }
 
+async function showValidationFailureToast(): Promise<void> {
+    await toastController.dismiss(undefined, undefined, VALIDATION_TOAST_ID);
+    const toast = await toastController.create({
+        id: VALIDATION_TOAST_ID,
+        message: `Record not saved. ${issueSummary()}`,
+        color: "danger",
+        duration: 2800,
+        position: "bottom",
+    });
+    await toast.present();
+}
+
 async function saveRecord(): Promise<void> {
     showValidationErrors.value = true;
     if (!isFormValid.value) {
+        const toastPromise = showValidationFailureToast();
         await scrollToFirstIssue();
+        await toastPromise;
         return;
     }
+    await toastController.dismiss(undefined, undefined, VALIDATION_TOAST_ID);
     void modalController.dismiss(buildRecord(), "confirm");
 }
 </script>

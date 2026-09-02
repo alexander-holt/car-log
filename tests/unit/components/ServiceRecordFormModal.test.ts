@@ -1,5 +1,6 @@
 import { flushPromises, mount } from "@vue/test-utils";
 import { describe, expect, it, vi } from "vitest";
+import { toastController } from "@ionic/vue";
 import ServiceRecordFormModal from "@/components/ServiceRecordFormModal.vue";
 import type { ServiceRecord } from "@/types";
 
@@ -29,8 +30,10 @@ const global = {
                 '<button :disabled="disabled" @click="$emit(\'click\')"><slot /></button>',
         },
         IonInput: {
-            props: ["label"],
-            template: "<label>{{ label }}<slot /></label>",
+            props: ["label", "modelValue"],
+            emits: ["update:modelValue"],
+            template:
+                '<label>{{ label }}<input :value="modelValue" @input="$emit(\'update:modelValue\', $event.target.value)" /><slot /></label>',
         },
     },
 };
@@ -179,6 +182,13 @@ describe("ServiceRecordFormModal", () => {
             });
         content.getScrollElement = vi.fn().mockResolvedValue(scrollElement);
         content.scrollToPoint = vi.fn().mockResolvedValue(undefined);
+        const dismissToast = vi
+            .spyOn(toastController, "dismiss")
+            .mockResolvedValue(true);
+        const presentToast = vi.fn().mockResolvedValue(undefined);
+        const createToast = vi
+            .spyOn(toastController, "create")
+            .mockResolvedValue({ present: presentToast } as never);
 
         const saveButton = wrapper
             .findAll("button")
@@ -200,6 +210,33 @@ describe("ServiceRecordFormModal", () => {
         expect(wrapper.findAll(".service-item-panel")).toHaveLength(1);
         expect(content.getScrollElement).toHaveBeenCalledOnce();
         expect(content.scrollToPoint).toHaveBeenCalledWith(undefined, 274, 180);
+        expect(dismissToast).toHaveBeenCalledWith(
+            undefined,
+            undefined,
+            "service-record-validation",
+        );
+        expect(createToast).toHaveBeenCalledWith(
+            expect.objectContaining({
+                message:
+                    "Record not saved. 2 fields need attention. 2 services have errors.",
+                color: "danger",
+                position: "bottom",
+            }),
+        );
+        expect(presentToast).toHaveBeenCalledOnce();
+
+        await wrapper
+            .get('[data-field-path="items.0.title"] input')
+            .setValue("First custom service");
+        expect(wrapper.get(".validation-summary").text()).toContain(
+            "1 field needs attention. 1 service has errors.",
+        );
+
+        await summaries[1].trigger("click");
+        await wrapper
+            .get('[data-field-path="items.1.title"] input')
+            .setValue("Second custom service");
+        expect(wrapper.find(".validation-summary").exists()).toBe(false);
 
         boundsSpy.mockRestore();
     });
