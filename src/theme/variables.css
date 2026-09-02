@@ -145,3 +145,33 @@ ion-fab-button {
     --background-activated: var(--ion-color-primary-shade);
     --color: var(--cl-accent-contrast);
 }
+
+.service-tone--oil {
+    --cl-service-tone: var(--cl-service-oil);
+    --cl-service-tone-soft: var(--cl-service-oil-soft);
+}
+
+.service-tone--tire {
+    --cl-service-tone: var(--cl-service-tire);
+    --cl-service-tone-soft: var(--cl-service-tire-soft);
+}
+
+.service-tone--inspection {
+    --cl-service-tone: var(--cl-service-inspection);
+    --cl-service-tone-soft: var(--cl-service-inspection-soft);
+}
+
+.service-tone--repair {
+    --cl-service-tone: var(--cl-service-repair);
+    --cl-service-tone-soft: var(--cl-service-repair-soft);
+}
+
+.service-tone--battery {
+    --cl-service-tone: var(--cl-service-battery);
+    --cl-service-tone-soft: var(--cl-service-battery-soft);
+}
+
+.service-tone--other {
+    --cl-service-tone: var(--cl-service-other);
+    --cl-service-tone-soft: var(--cl-service-other-soft);
+}

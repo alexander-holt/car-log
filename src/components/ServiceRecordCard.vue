@@ -1,195 +1,210 @@
 <script setup lang="ts">
-import {
-    IonButton,
-    IonButtons,
-    IonCard,
-    IonCardContent,
-    IonCardHeader,
-    IonCardSubtitle,
-    IonCardTitle,
-    IonChip,
-    IonIcon,
-    IonItem,
-    IonLabel,
-    IonList,
-} from "@ionic/vue";
-import {
-    cashOutline,
-    chevronDownOutline,
-    chevronUpOutline,
-    documentTextOutline,
-    locationOutline,
-} from "ionicons/icons";
-import { ref } from "vue";
+import { IonIcon } from "@ionic/vue";
+import { chevronForwardOutline } from "ionicons/icons";
+import { presentationFor } from "@/services/serviceRecordPresentation";
 import {
     formatCost,
     formatLocalDate,
 } from "@/services/serviceRecordValidation";
-import type { ServiceItem, ServiceRecord, ServiceType } from "@/types";
+import type { ServiceRecord } from "@/types";
 
-defineProps<{
+const props = defineProps<{
     record: ServiceRecord;
 }>();
 
 defineEmits<{
-    edit: [record: ServiceRecord];
-    delete: [record: ServiceRecord];
+    open: [record: ServiceRecord];
 }>();
 
-const expanded = ref(false);
+function providerLabel(): string {
+    const providerType = props.record.providerType === "DIY" ? "DIY" : "Shop";
+    return props.record.providerName
+        ? `${providerType} · ${props.record.providerName}`
+        : providerType;
+}
 
-const categoryLabels: Record<ServiceType, string> = {
-    OIL_CHANGE: "Oil change",
-    TIRE_ROTATION: "Tire rotation",
-    TIRE_REPLACEMENT: "Tire replacement",
-    BRAKE_SERVICE: "Brake service",
-    BATTERY_SERVICE: "Battery service",
-    INSPECTION: "Inspection",
-    REPAIR: "Repair",
-    OTHER: "Other",
-};
-
-function itemLabel(item: ServiceItem): string {
-    return item.serviceType === "OTHER"
-        ? item.title
-        : (item.title ?? categoryLabels[item.serviceType]);
+function recordAriaLabel(): string {
+    return `Open service record from ${formatLocalDate(props.record.date)}`;
 }
 </script>
 
 <template>
-    <ion-card class="service-record-card">
-        <ion-card-header>
-            <ion-card-title>{{ formatLocalDate(record.date) }}</ion-card-title>
-            <ion-card-subtitle>
-                {{ record.mileage.toLocaleString() }} mi ·
-                {{ record.providerType === "DIY" ? "DIY" : "Shop" }}
-            </ion-card-subtitle>
+    <article class="service-record-card">
+        <button
+            class="record-card-button"
+            type="button"
+            :aria-label="recordAriaLabel()"
+            @click="$emit('open', record)"
+        >
+            <div class="record-timing">
+                <time :datetime="record.date">
+                    {{ formatLocalDate(record.date) }}
+                </time>
+                <span>{{ record.mileage.toLocaleString() }} mi</span>
+            </div>
+
+            <div class="record-visit">
+                <span>{{ providerLabel() }}</span>
+                <span
+                    v-if="record.totalCostCents !== undefined"
+                    class="record-cost"
+                >
+                    {{ formatCost(record.totalCostCents) }}
+                </span>
+            </div>
+
             <div class="category-chips" aria-label="Service categories">
-                <ion-chip
+                <span
                     v-for="item in record.items"
                     :key="item.id"
-                    color="primary"
+                    class="service-chip"
+                    :class="`service-tone--${presentationFor(item.serviceType).tone}`"
                 >
-                    {{ categoryLabels[item.serviceType] }}
-                </ion-chip>
-            </div>
-        </ion-card-header>
-
-        <ion-card-content>
-            <ion-list lines="none">
-                <ion-item v-if="record.providerName">
-                    <ion-icon slot="start" :icon="locationOutline" />
-                    <ion-label>{{ record.providerName }}</ion-label>
-                </ion-item>
-                <ion-item v-if="record.totalCostCents !== undefined">
-                    <ion-icon slot="start" :icon="cashOutline" />
-                    <ion-label>
-                        {{ formatCost(record.totalCostCents) }}
-                    </ion-label>
-                </ion-item>
-                <ion-item v-if="record.notes">
-                    <ion-icon slot="start" :icon="documentTextOutline" />
-                    <ion-label class="ion-text-wrap">
-                        {{ record.notes }}
-                    </ion-label>
-                </ion-item>
-            </ion-list>
-
-            <div v-if="expanded" class="record-details">
-                <section
-                    v-for="item in record.items"
-                    :key="item.id"
-                    class="service-item-details"
-                >
-                    <h3>{{ itemLabel(item) }}</h3>
-                    <p class="item-category">
-                        {{ categoryLabels[item.serviceType] }}
-                    </p>
-                    <p v-if="item.serviceType === 'OIL_CHANGE' && item.oilType">
-                        <strong>Oil:</strong>
-                        {{ item.oilType }}
-                    </p>
-                    <p v-if="item.serviceType === 'OIL_CHANGE'">
-                        <strong>Filter replaced:</strong>
-                        {{ item.filterReplaced ? "Yes" : "No" }}
-                    </p>
-                    <p
-                        v-if="
-                            (item.serviceType === 'TIRE_ROTATION' ||
-                                item.serviceType === 'TIRE_REPLACEMENT') &&
-                            item.treadDepthRemaining !== undefined
-                        "
-                    >
-                        <strong>Tread depth:</strong>
-                        {{ item.treadDepthRemaining }}/32 in
-                    </p>
-                    <p v-if="item.notes">{{ item.notes }}</p>
-                </section>
-            </div>
-
-            <ion-buttons class="card-actions">
-                <ion-button fill="clear" @click="expanded = !expanded">
                     <ion-icon
-                        slot="start"
-                        :icon="expanded ? chevronUpOutline : chevronDownOutline"
+                        aria-hidden="true"
+                        :icon="presentationFor(item.serviceType).icon"
                     />
-                    {{ expanded ? "Hide details" : "View details" }}
-                </ion-button>
-                <ion-button fill="clear" @click="$emit('edit', record)">
-                    Edit
-                </ion-button>
-                <ion-button
-                    fill="clear"
-                    color="danger"
-                    @click="$emit('delete', record)"
-                >
-                    Delete
-                </ion-button>
-            </ion-buttons>
-        </ion-card-content>
-    </ion-card>
+                    {{ presentationFor(item.serviceType).label }}
+                </span>
+            </div>
+
+            <div v-if="record.notes" class="record-note-preview">
+                <p>{{ record.notes }}</p>
+                <ion-icon aria-hidden="true" :icon="chevronForwardOutline" />
+            </div>
+            <ion-icon
+                v-else
+                class="record-disclosure"
+                aria-hidden="true"
+                :icon="chevronForwardOutline"
+            />
+        </button>
+    </article>
 </template>
 
 <style scoped>
+.service-record-card {
+    margin: 0 0 1rem;
+}
+
+.record-card-button {
+    position: relative;
+    width: 100%;
+    padding: 1rem;
+    border: 1px solid var(--cl-border);
+    border-radius: var(--cl-card-radius);
+    background: var(--cl-surface);
+    box-shadow: var(--cl-card-shadow);
+    color: var(--cl-text);
+    font: inherit;
+    text-align: start;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+}
+
+.record-card-button:focus-visible {
+    outline: 3px solid var(--cl-accent);
+    outline-offset: 2px;
+}
+
+.record-card-button:active {
+    background: var(--cl-surface-muted);
+}
+
+.record-timing,
+.record-visit {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 1rem;
+    font-variant-numeric: tabular-nums;
+}
+
+.record-timing {
+    font-size: 0.9375rem;
+    font-weight: 650;
+    letter-spacing: -0.01em;
+}
+
+.record-timing span {
+    color: var(--cl-text-muted);
+    font-weight: 550;
+    white-space: nowrap;
+}
+
+.record-visit {
+    margin-top: 0.375rem;
+    color: var(--cl-text-muted);
+    font-size: 0.9375rem;
+}
+
+.record-cost {
+    color: var(--cl-text);
+    font-weight: 650;
+    white-space: nowrap;
+}
+
 .category-chips {
     display: flex;
     flex-wrap: wrap;
-    gap: 0.25rem;
-    margin-top: 0.75rem;
+    gap: 0.375rem;
+    margin-block: 0.875rem;
 }
 
-.category-chips ion-chip {
+.service-chip {
+    display: inline-flex;
+    min-height: 1.75rem;
+    align-items: center;
+    gap: 0.3rem;
+    padding: 0.25rem 0.625rem;
+    border-radius: 999px;
+    background: var(--cl-service-tone-soft);
+    color: var(--cl-service-tone);
+    font-size: 0.8125rem;
+    font-weight: 650;
+    line-height: 1.2;
+}
+
+.service-chip ion-icon {
+    flex: 0 0 auto;
+    font-size: 1rem;
+}
+
+.record-note-preview {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 0.75rem;
+    padding-top: 0.875rem;
+    border-top: 1px solid var(--cl-border);
+    color: var(--cl-text-muted);
+}
+
+.record-note-preview p {
+    display: -webkit-box;
     margin: 0;
+    overflow: hidden;
+    font-size: 0.9375rem;
+    line-height: 1.4;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
 }
 
-.record-details {
-    border-top: 1px solid var(--ion-color-step-150, #d7d8da);
-    margin-top: 0.75rem;
-    padding-top: 0.5rem;
+.record-note-preview ion-icon,
+.record-disclosure {
+    color: var(--cl-text-muted);
+    font-size: 1.125rem;
 }
 
-.service-item-details + .service-item-details {
-    border-top: 1px solid var(--ion-color-step-100, #e6e6e6);
+.record-disclosure {
+    position: absolute;
+    right: 1rem;
+    bottom: 1.25rem;
 }
 
-.service-item-details {
-    padding: 0.5rem 0;
-}
-
-.service-item-details h3,
-.service-item-details p {
-    margin: 0.25rem 0;
-}
-
-.item-category {
-    color: var(--ion-color-medium);
-    font-size: 0.85rem;
-}
-
-.card-actions {
-    display: flex;
-    flex-wrap: wrap;
-    justify-content: flex-end;
-    margin-top: 0.5rem;
+@media (hover: hover) {
+    .record-card-button:hover {
+        border-color: var(--cl-accent);
+    }
 }
 </style>

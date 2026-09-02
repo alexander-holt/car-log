@@ -18,16 +18,16 @@ import {
     IonSpinner,
     IonTitle,
     IonToolbar,
-    alertController,
     modalController,
     onIonViewWillEnter,
     toastController,
 } from "@ionic/vue";
 import { add } from "ionicons/icons";
 import { computed, ref } from "vue";
-import { useRoute } from "vue-router";
+import { useRoute, useRouter } from "vue-router";
 
 const route = useRoute();
+const router = useRouter();
 const vehicleStore = useVehicleStore();
 const recordStore = useServiceRecordStore();
 const saving = ref(false);
@@ -70,7 +70,7 @@ async function fetchRecords(): Promise<void> {
 
 onIonViewWillEnter(fetchRecords);
 
-async function openRecordModal(existingRecord?: ServiceRecord): Promise<void> {
+async function openRecordModal(): Promise<void> {
     if (!vehicle.value) {
         return;
     }
@@ -79,7 +79,6 @@ async function openRecordModal(existingRecord?: ServiceRecord): Promise<void> {
         component: ServiceRecordFormModal,
         componentProps: {
             vehicleId,
-            record: existingRecord,
             currentMileage: vehicle.value.currentMileage,
         },
     });
@@ -92,13 +91,8 @@ async function openRecordModal(existingRecord?: ServiceRecord): Promise<void> {
 
     saving.value = true;
     try {
-        if (existingRecord) {
-            await recordStore.updateRecord(data);
-            await showToast("Service record updated.", "success");
-        } else {
-            await recordStore.addRecord(data);
-            await showToast("Service record saved.", "success");
-        }
+        await recordStore.addRecord(data);
+        await showToast("Service record saved.", "success");
     } catch (error) {
         await showToast(
             `Could not save service record. ${messageFor(error)}`,
@@ -109,38 +103,14 @@ async function openRecordModal(existingRecord?: ServiceRecord): Promise<void> {
     }
 }
 
-async function deleteRecord(record: ServiceRecord): Promise<void> {
-    saving.value = true;
-    try {
-        await recordStore.deleteRecord(record.id);
-        await showToast("Service record deleted.", "success");
-    } catch (error) {
-        await showToast(
-            `Could not delete service record. ${messageFor(error)}`,
-            "danger",
-        );
-    } finally {
-        saving.value = false;
-    }
-}
-
-async function confirmDelete(record: ServiceRecord): Promise<void> {
-    const itemWord = record.items.length === 1 ? "item" : "items";
-    const alert = await alertController.create({
-        header: "Delete service record?",
-        message: `This will permanently remove the record, its ${record.items.length} service ${itemWord}, and their details.`,
-        buttons: [
-            { text: "Cancel", role: "cancel" },
-            {
-                text: "Delete",
-                role: "destructive",
-                handler: () => {
-                    void deleteRecord(record);
-                },
-            },
-        ],
+function openRecord(record: ServiceRecord): void {
+    void router.push({
+        name: "ServiceRecordDetail",
+        params: {
+            vehicleId,
+            recordId: record.id,
+        },
     });
-    await alert.present();
 }
 </script>
 
@@ -174,65 +144,78 @@ async function confirmDelete(record: ServiceRecord): Promise<void> {
                 </ion-toolbar>
             </ion-header>
 
-            <section v-if="vehicle" class="vehicle-summary">
-                <p>
-                    <strong>License plate:</strong>
-                    {{ vehicle.licensePlate || "Not entered" }}
-                </p>
-                <p>
-                    <strong>Current mileage:</strong>
-                    {{
-                        vehicle.currentMileage === undefined
-                            ? "Not entered"
-                            : `${vehicle.currentMileage.toLocaleString()} mi`
-                    }}
-                </p>
-            </section>
-            <section v-else class="state-message" role="alert">
-                <h2>Vehicle not found</h2>
-                <p>Return to My Garage and choose a vehicle.</p>
-            </section>
+            <main class="vehicle-page">
+                <section v-if="vehicle" class="vehicle-summary">
+                    <dl>
+                        <div>
+                            <dt>Current mileage</dt>
+                            <dd>
+                                {{
+                                    vehicle.currentMileage === undefined
+                                        ? "Not entered"
+                                        : `${vehicle.currentMileage.toLocaleString()} mi`
+                                }}
+                            </dd>
+                        </div>
+                        <div>
+                            <dt>License plate</dt>
+                            <dd>{{ vehicle.licensePlate || "Not entered" }}</dd>
+                        </div>
+                    </dl>
+                </section>
+                <section v-else class="state-message" role="alert">
+                    <h2>Vehicle not found</h2>
+                    <p>Return to My Garage and choose a vehicle.</p>
+                </section>
 
-            <section v-if="vehicle" aria-labelledby="history-title">
-                <h2 id="history-title">Service history</h2>
-
-                <div
-                    v-if="recordStore.loading"
-                    class="state-message"
-                    aria-live="polite"
+                <section
+                    v-if="vehicle"
+                    class="history-section"
+                    aria-labelledby="history-title"
                 >
-                    <ion-spinner name="crescent" />
-                    <p>Loading service history…</p>
-                </div>
+                    <h2 id="history-title">Service history</h2>
 
-                <div
-                    v-else-if="recordStore.error"
-                    class="state-message"
-                    role="alert"
-                >
-                    <ion-note color="danger">
-                        Could not load service history. {{ recordStore.error }}
-                    </ion-note>
-                    <ion-button fill="outline" @click="fetchRecords">
-                        Retry
-                    </ion-button>
-                </div>
+                    <div
+                        v-if="recordStore.loading"
+                        class="state-message"
+                        aria-live="polite"
+                    >
+                        <ion-spinner name="crescent" />
+                        <p>Loading service history…</p>
+                    </div>
 
-                <div v-else-if="recordStore.records.length > 0">
-                    <ServiceRecordCard
-                        v-for="record in recordStore.records"
-                        :key="record.id"
-                        :record="record"
-                        @edit="openRecordModal"
-                        @delete="confirmDelete"
-                    />
-                </div>
+                    <div
+                        v-else-if="recordStore.error"
+                        class="state-message"
+                        role="alert"
+                    >
+                        <ion-note color="danger">
+                            Could not load service history.
+                            {{ recordStore.error }}
+                        </ion-note>
+                        <ion-button fill="outline" @click="fetchRecords">
+                            Retry
+                        </ion-button>
+                    </div>
 
-                <div v-else class="state-message">
-                    <h3>No service records yet</h3>
-                    <p>Tap the + button to log DIY work or a shop visit.</p>
-                </div>
-            </section>
+                    <div
+                        v-else-if="recordStore.records.length > 0"
+                        class="record-list"
+                    >
+                        <ServiceRecordCard
+                            v-for="record in recordStore.records"
+                            :key="record.id"
+                            :record="record"
+                            @open="openRecord"
+                        />
+                    </div>
+
+                    <div v-else class="state-message empty-history">
+                        <h3>No service records yet</h3>
+                        <p>Tap the + button to log DIY work or a shop visit.</p>
+                    </div>
+                </section>
+            </main>
 
             <div v-if="saving" class="saving-indicator" aria-live="polite">
                 <ion-spinner name="crescent" />
@@ -258,9 +241,68 @@ async function confirmDelete(record: ServiceRecord): Promise<void> {
 </template>
 
 <style scoped>
+.vehicle-page {
+    width: min(100%, 46rem);
+    margin: 0 auto;
+}
+
 .vehicle-summary {
-    border-bottom: 1px solid var(--ion-color-step-150, #d7d8da);
-    margin-bottom: 1rem;
+    overflow: hidden;
+    border: 1px solid var(--cl-border);
+    border-radius: var(--cl-card-radius);
+    background: var(--cl-surface);
+    box-shadow: var(--cl-card-shadow);
+}
+
+.vehicle-summary dl {
+    margin: 0;
+}
+
+.vehicle-summary dl > div {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 0.75rem 1rem;
+}
+
+.vehicle-summary dl > div + div {
+    border-top: 1px solid var(--cl-border);
+}
+
+.vehicle-summary dt {
+    color: var(--cl-text-muted);
+    font-size: 0.875rem;
+}
+
+.vehicle-summary dd {
+    margin: 0;
+    color: var(--cl-text);
+    font-size: 0.9375rem;
+    font-weight: 650;
+    font-variant-numeric: tabular-nums;
+    text-align: end;
+}
+
+.history-section {
+    margin-top: 1.75rem;
+}
+
+.history-section > h2 {
+    margin: 0 0 0.75rem;
+    font-size: 1.5rem;
+    letter-spacing: -0.02em;
+}
+
+.record-list {
+    display: grid;
+    gap: 0;
+}
+
+.empty-history {
+    border: 1px dashed var(--cl-border);
+    border-radius: var(--cl-card-radius);
+    background: var(--cl-surface);
 }
 
 .state-message {
@@ -284,8 +326,9 @@ async function confirmDelete(record: ServiceRecord): Promise<void> {
     align-items: center;
     gap: 0.5rem;
     padding: 0.75rem 1rem;
+    border: 1px solid var(--cl-border);
     border-radius: 999px;
-    background: var(--ion-color-light);
-    box-shadow: 0 2px 12px rgb(0 0 0 / 18%);
+    background: var(--cl-surface);
+    box-shadow: var(--cl-card-shadow);
 }
 </style>
