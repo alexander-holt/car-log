@@ -46,7 +46,7 @@ const record: ServiceRecord = {
 };
 
 describe("ServiceRecordCard", () => {
-    it("renders one compact record card with a chip for every item", () => {
+    it("renders one compact record card with a chip for every category", () => {
         const wrapper = mount(ServiceRecordCard, {
             props: { record },
             global,
@@ -61,6 +61,44 @@ describe("ServiceRecordCard", () => {
         expect(wrapper.text()).toContain("$200.00");
         expect(wrapper.find(".record-note-preview").text()).toContain(
             record.notes,
+        );
+    });
+
+    it("combines duplicate categories into one chip with a count", () => {
+        const wrapper = mount(ServiceRecordCard, {
+            props: {
+                record: {
+                    ...record,
+                    items: [
+                        ...record.items,
+                        {
+                            id: "other-2",
+                            serviceRecordId: "record-1",
+                            serviceType: "OTHER",
+                            title: "Washer fluid",
+                        },
+                        {
+                            id: "oil-2",
+                            serviceRecordId: "record-1",
+                            serviceType: "OIL_CHANGE",
+                            title: "Second oil service",
+                            filterReplaced: false,
+                        },
+                    ],
+                },
+            },
+            global,
+        });
+
+        expect(
+            wrapper.findAll(".service-chip").map((chip) => chip.text().trim()),
+        ).toEqual(["Oil change 2", "Repair", "Other 2"]);
+        expect(wrapper.findAll(".service-chip")).toHaveLength(3);
+        expect(
+            wrapper.find('[aria-label="Oil change, 2 services"]').exists(),
+        ).toBe(true);
+        expect(wrapper.find('[aria-label="Other, 2 services"]').exists()).toBe(
+            true,
         );
     });
 

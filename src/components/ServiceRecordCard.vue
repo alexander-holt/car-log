@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { IonIcon } from "@ionic/vue";
 import { chevronForwardOutline } from "ionicons/icons";
+import { computed } from "vue";
 import { presentationFor } from "@/services/serviceRecordPresentation";
 import {
     formatCost,
@@ -15,6 +16,22 @@ const props = defineProps<{
 defineEmits<{
     open: [record: ServiceRecord];
 }>();
+
+const categoryCounts = computed(() => {
+    const counts = new Map<
+        ServiceRecord["items"][number]["serviceType"],
+        number
+    >();
+
+    for (const item of props.record.items) {
+        counts.set(item.serviceType, (counts.get(item.serviceType) ?? 0) + 1);
+    }
+
+    return [...counts].map(([serviceType, count]) => ({
+        serviceType,
+        count,
+    }));
+});
 
 function providerLabel(): string {
     const providerType = props.record.providerType === "DIY" ? "DIY" : "Shop";
@@ -55,16 +72,28 @@ function recordAriaLabel(): string {
 
             <div class="category-chips" aria-label="Service categories">
                 <span
-                    v-for="item in record.items"
-                    :key="item.id"
+                    v-for="category in categoryCounts"
+                    :key="category.serviceType"
                     class="service-chip"
-                    :class="`service-tone--${presentationFor(item.serviceType).tone}`"
+                    :class="`service-tone--${presentationFor(category.serviceType).tone}`"
+                    :aria-label="
+                        category.count > 1
+                            ? `${presentationFor(category.serviceType).label}, ${category.count} services`
+                            : undefined
+                    "
                 >
                     <ion-icon
                         aria-hidden="true"
-                        :icon="presentationFor(item.serviceType).icon"
+                        :icon="presentationFor(category.serviceType).icon"
                     />
-                    {{ presentationFor(item.serviceType).label }}
+                    {{ presentationFor(category.serviceType).label }}
+                    <span
+                        v-if="category.count > 1"
+                        class="service-chip-count"
+                        aria-hidden="true"
+                    >
+                        {{ category.count }}
+                    </span>
                 </span>
             </div>
 
@@ -168,6 +197,21 @@ function recordAriaLabel(): string {
 .service-chip ion-icon {
     flex: 0 0 auto;
     font-size: 1rem;
+}
+
+.service-chip-count {
+    display: inline-grid;
+    min-width: 1.125rem;
+    height: 1.125rem;
+    place-items: center;
+    padding-inline: 0.25rem;
+    border-radius: 999px;
+    background: var(--cl-service-tone);
+    color: var(--cl-service-tone-soft);
+    font-size: 0.6875rem;
+    font-variant-numeric: tabular-nums;
+    font-weight: 750;
+    line-height: 1;
 }
 
 .record-note-preview {
