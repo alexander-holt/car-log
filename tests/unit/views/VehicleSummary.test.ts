@@ -3,6 +3,7 @@ import { createPinia, setActivePinia } from "pinia";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { nextTick } from "vue";
 import { modalController, toastController } from "@ionic/vue";
+import VehicleFormModal from "@/components/VehicleFormModal.vue";
 import VehicleSummary from "@/views/VehicleSummary.vue";
 import { useServiceRecordStore } from "@/store/serviceRecordStore";
 import { useVehicleStore } from "@/store/vehicleStore";
@@ -142,6 +143,60 @@ describe("VehicleSummary", () => {
         expect(toastSpy).toHaveBeenCalledWith(
             expect.objectContaining({
                 message: "Service record saved.",
+                color: "primary",
+            }),
+        );
+        expect(presentToast).toHaveBeenCalledOnce();
+    });
+
+    it("edits the vehicle from the details toolbar", async () => {
+        const updatedVehicle = {
+            make: "Honda",
+            model: "Accord",
+            year: 2021,
+            currentMileage: 46_000,
+        };
+        const vehicleStore = useVehicleStore();
+        const updateVehicle = vi
+            .spyOn(vehicleStore, "updateVehicle")
+            .mockResolvedValue(undefined);
+        const presentModal = vi.fn().mockResolvedValue(undefined);
+        const createModal = vi
+            .spyOn(modalController, "create")
+            .mockResolvedValue({
+                present: presentModal,
+                onWillDismiss: vi.fn().mockResolvedValue({
+                    data: updatedVehicle,
+                    role: "confirm",
+                }),
+            } as never);
+        const presentToast = vi.fn().mockResolvedValue(undefined);
+        const createToast = vi
+            .spyOn(toastController, "create")
+            .mockResolvedValue({
+                present: presentToast,
+            } as never);
+        const wrapper = mount(VehicleSummary, { global });
+
+        const editButton = wrapper
+            .findAll("button")
+            .find((button) => button.text().trim() === "Edit");
+        await editButton?.trigger("click");
+        await flushPromises();
+
+        expect(createModal).toHaveBeenCalledWith(
+            expect.objectContaining({
+                component: VehicleFormModal,
+                componentProps: {
+                    vehicle: expect.objectContaining({ id: "vehicle-1" }),
+                },
+            }),
+        );
+        expect(presentModal).toHaveBeenCalledOnce();
+        expect(updateVehicle).toHaveBeenCalledWith("vehicle-1", updatedVehicle);
+        expect(createToast).toHaveBeenCalledWith(
+            expect.objectContaining({
+                message: "Vehicle updated.",
                 color: "primary",
             }),
         );

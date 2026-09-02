@@ -1,9 +1,10 @@
 <script setup lang="ts">
 import ServiceRecordCard from "@/components/ServiceRecordCard.vue";
 import ServiceRecordFormModal from "@/components/ServiceRecordFormModal.vue";
+import VehicleFormModal from "@/components/VehicleFormModal.vue";
 import { useServiceRecordStore } from "@/store/serviceRecordStore";
 import { useVehicleStore } from "@/store/vehicleStore";
-import type { ServiceRecord } from "@/types";
+import type { ServiceRecord, Vehicle } from "@/types";
 import {
     IonBackButton,
     IonButton,
@@ -70,6 +71,39 @@ async function fetchRecords(): Promise<void> {
 
 onIonViewWillEnter(fetchRecords);
 
+async function openVehicleEditModal(): Promise<void> {
+    const currentVehicle = vehicle.value;
+    if (!currentVehicle) {
+        return;
+    }
+
+    const modal = await modalController.create({
+        component: VehicleFormModal,
+        componentProps: {
+            vehicle: currentVehicle,
+        },
+    });
+    await modal.present();
+
+    const { data, role } = await modal.onWillDismiss<Omit<Vehicle, "id">>();
+    if (role !== "confirm" || !data) {
+        return;
+    }
+
+    saving.value = true;
+    try {
+        await vehicleStore.updateVehicle(currentVehicle.id, data);
+        await showToast("Vehicle updated.", "primary");
+    } catch (error) {
+        await showToast(
+            `Could not update vehicle. ${messageFor(error)}`,
+            "danger",
+        );
+    } finally {
+        saving.value = false;
+    }
+}
+
 async function openRecordModal(): Promise<void> {
     if (!vehicle.value) {
         return;
@@ -128,6 +162,14 @@ function openRecord(record: ServiceRecord): void {
                             : "Vehicle details"
                     }}
                 </ion-title>
+                <ion-buttons v-if="vehicle" slot="end">
+                    <ion-button
+                        :disabled="saving"
+                        @click="openVehicleEditModal"
+                    >
+                        Edit
+                    </ion-button>
+                </ion-buttons>
             </ion-toolbar>
         </ion-header>
 

@@ -1,74 +1,130 @@
 <script setup lang="ts">
+import VehicleFormModal from "@/components/VehicleFormModal.vue";
+import { useVehicleStore } from "@/store/vehicleStore";
+import type { Vehicle } from "@/types";
 import {
     IonContent,
+    IonFab,
+    IonFabButton,
     IonHeader,
+    IonIcon,
+    IonItem,
+    IonItemOption,
+    IonItemOptions,
+    IonItemSliding,
+    IonLabel,
+    IonList,
     IonPage,
     IonTitle,
     IonToolbar,
-    IonList,
-    IonItem,
-    IonItemOptions,
-    IonItemOption,
-    IonItemSliding,
-    IonLabel,
-    IonFab,
-    IonFabButton,
-    IonIcon,
-    modalController,
     alertController,
+    modalController,
+    toastController,
 } from "@ionic/vue";
-import { add } from "ionicons/icons";
-import { useVehicleStore } from "@/store/vehicleStore";
+import {
+    addOutline,
+    carSportOutline,
+    chevronForwardOutline,
+} from "ionicons/icons";
+import { ref } from "vue";
 import { useRouter } from "vue-router";
 import { v4 as uuidv4 } from "uuid";
-import { Vehicle } from "@/types";
-import VehicleFormModal from "@/components/VehicleFormModal.vue";
-import { ref } from "vue";
 
 const router = useRouter();
 const vehicleStore = useVehicleStore();
-
 const vehicleListRef = ref<(typeof IonList & { $el: any }) | null>(null);
+const saving = ref(false);
 
-const goToVehicle = (id: string) => {
-    router.push(`/vehicle/${id}`);
-};
+function messageFor(error: unknown): string {
+    return error instanceof Error
+        ? error.message
+        : "An unexpected garage error occurred.";
+}
 
-const openVehicleModal = async (existingVehicle?: Vehicle) => {
-    await vehicleListRef.value?.$el?.closeSlidingItems();
+async function showToast(
+    message: string,
+    color: "primary" | "danger",
+): Promise<void> {
+    const toast = await toastController.create({
+        message,
+        color,
+        duration: 2500,
+        position: "bottom",
+    });
+    await toast.present();
+}
+
+function goToVehicle(id: string): void {
+    void router.push(`/vehicle/${id}`);
+}
+
+function mileageLabel(vehicle: Vehicle): string | undefined {
+    return vehicle.currentMileage === undefined
+        ? undefined
+        : `${vehicle.currentMileage.toLocaleString()} mi`;
+}
+
+async function openVehicleModal(existingVehicle?: Vehicle): Promise<void> {
+    await vehicleListRef.value?.$el?.closeSlidingItems?.();
 
     const modal = await modalController.create({
         component: VehicleFormModal,
-        presentingElement: document.getElementById("main-content") || undefined,
+        presentingElement: document.getElementById("main-content") ?? undefined,
         componentProps: {
             vehicle: existingVehicle,
         },
     });
-
     await modal.present();
 
-    const { data, role } = await modal.onWillDismiss();
+    const { data, role } = await modal.onWillDismiss<Omit<Vehicle, "id">>();
+    if (role !== "confirm" || !data) {
+        return;
+    }
 
-    if (role === "confirm" && data) {
+    saving.value = true;
+    try {
         if (existingVehicle) {
             await vehicleStore.updateVehicle(existingVehicle.id, data);
+            await showToast("Vehicle updated.", "primary");
         } else {
-            const newVehicle: Vehicle = {
+            await vehicleStore.addVehicle({
                 id: uuidv4(),
                 ...data,
-            };
-            await vehicleStore.addVehicle(newVehicle);
+            });
+            await showToast("Vehicle added.", "primary");
         }
+    } catch (error) {
+        await showToast(
+            `Could not save vehicle. ${messageFor(error)}`,
+            "danger",
+        );
+    } finally {
+        saving.value = false;
     }
-};
+}
 
-const confirmDelete = async (id: string) => {
-    await vehicleListRef.value?.$el?.closeSlidingItems();
+async function deleteVehicle(id: string): Promise<void> {
+    saving.value = true;
+    try {
+        await vehicleStore.deleteVehicle(id);
+        await showToast("Vehicle deleted.", "primary");
+    } catch (error) {
+        await showToast(
+            `Could not delete vehicle. ${messageFor(error)}`,
+            "danger",
+        );
+    } finally {
+        saving.value = false;
+    }
+}
+
+async function confirmDelete(id: string): Promise<void> {
+    await vehicleListRef.value?.$el?.closeSlidingItems?.();
 
     const alert = await alertController.create({
-        header: "Delete Vehicle",
+        header: "Delete vehicle?",
         message:
-            "Are you sure you want to delete this vehicle? This action cannot be undone.",
+            "This permanently removes the vehicle and its service history.",
         buttons: [
             {
                 text: "Cancel",
@@ -77,15 +133,14 @@ const confirmDelete = async (id: string) => {
             {
                 text: "Delete",
                 role: "destructive",
-                handler: async () => {
-                    await vehicleStore.deleteVehicle(id);
+                handler: () => {
+                    void deleteVehicle(id);
                 },
             },
         ],
     });
-
     await alert.present();
-};
+}
 </script>
 
 <template>
@@ -103,46 +158,100 @@ const confirmDelete = async (id: string) => {
                 </ion-toolbar>
             </ion-header>
 
-            <div v-if="vehicleStore.vehicles.length === 0" class="empty-state">
-                <p>Your garage is empty.</p>
-                <p>Tap the + button to add a vehicle.</p>
-            </div>
-
-            <ion-list ref="vehicleListRef">
-                <ion-item-sliding
-                    v-for="vehicle in vehicleStore.vehicles"
-                    :key="vehicle.id"
+            <main class="garage-page">
+                <section
+                    v-if="vehicleStore.vehicles.length === 0"
+                    class="empty-state"
+                    aria-labelledby="empty-garage-title"
                 >
-                    <ion-item button @click="goToVehicle(vehicle.id)">
-                        <ion-label>
-                            <h2>
-                                {{ vehicle.year }} {{ vehicle.make }}
-                                {{ vehicle.model }}
-                            </h2>
-                            <p>Plate: {{ vehicle.licensePlate }}</p>
-                        </ion-label>
-                    </ion-item>
+                    <span class="empty-state-icon">
+                        <ion-icon aria-hidden="true" :icon="carSportOutline" />
+                    </span>
+                    <h2 id="empty-garage-title">No vehicles yet</h2>
+                    <p>Add your first vehicle to start its service history.</p>
+                </section>
 
-                    <ion-item-options side="end">
-                        <ion-item-option
-                            color="primary"
-                            @click="openVehicleModal(vehicle)"
+                <ion-list
+                    v-else
+                    ref="vehicleListRef"
+                    class="vehicle-list"
+                    lines="none"
+                    aria-label="Vehicles"
+                >
+                    <ion-item-sliding
+                        v-for="vehicle in vehicleStore.vehicles"
+                        :key="vehicle.id"
+                        class="vehicle-sliding"
+                    >
+                        <ion-item
+                            button
+                            class="vehicle-card"
+                            :detail="false"
+                            @click="goToVehicle(vehicle.id)"
                         >
-                            Edit
-                        </ion-item-option>
-                        <ion-item-option
-                            color="danger"
-                            @click="confirmDelete(vehicle.id)"
-                        >
-                            Delete
-                        </ion-item-option>
-                    </ion-item-options>
-                </ion-item-sliding>
-            </ion-list>
+                            <span slot="start" class="vehicle-icon">
+                                <ion-icon
+                                    aria-hidden="true"
+                                    :icon="carSportOutline"
+                                />
+                            </span>
+                            <ion-label>
+                                <h2 class="vehicle-name">
+                                    {{ vehicle.year }} {{ vehicle.make }}
+                                    {{ vehicle.model }}
+                                </h2>
+                                <p class="vehicle-meta">
+                                    <span v-if="mileageLabel(vehicle)">
+                                        {{ mileageLabel(vehicle) }}
+                                    </span>
+                                    <span v-if="vehicle.licensePlate">
+                                        Plate {{ vehicle.licensePlate }}
+                                    </span>
+                                    <span
+                                        v-if="
+                                            !mileageLabel(vehicle) &&
+                                            !vehicle.licensePlate
+                                        "
+                                    >
+                                        Details not entered
+                                    </span>
+                                </p>
+                            </ion-label>
+                            <ion-icon
+                                slot="end"
+                                class="vehicle-chevron"
+                                aria-hidden="true"
+                                :icon="chevronForwardOutline"
+                            />
+                        </ion-item>
+
+                        <ion-item-options side="end">
+                            <ion-item-option
+                                color="primary"
+                                :disabled="saving"
+                                @click="openVehicleModal(vehicle)"
+                            >
+                                Edit
+                            </ion-item-option>
+                            <ion-item-option
+                                color="danger"
+                                :disabled="saving"
+                                @click="confirmDelete(vehicle.id)"
+                            >
+                                Delete
+                            </ion-item-option>
+                        </ion-item-options>
+                    </ion-item-sliding>
+                </ion-list>
+            </main>
 
             <ion-fab slot="fixed" vertical="bottom" horizontal="end">
-                <ion-fab-button @click="openVehicleModal()">
-                    <ion-icon :icon="add"></ion-icon>
+                <ion-fab-button
+                    aria-label="Add vehicle"
+                    :disabled="saving"
+                    @click="openVehicleModal()"
+                >
+                    <ion-icon :icon="addOutline" />
                 </ion-fab-button>
             </ion-fab>
         </ion-content>
@@ -150,17 +259,114 @@ const confirmDelete = async (id: string) => {
 </template>
 
 <style scoped>
-.empty-state {
+.garage-page {
+    width: min(100%, 46rem);
+    margin: 0 auto;
+    padding: 1rem var(--cl-page-gutter) 6rem;
+}
+
+.vehicle-list {
+    margin: 0;
+    padding: 0;
+    background: transparent;
+}
+
+.vehicle-sliding {
+    overflow: hidden;
+    margin-bottom: 0.75rem;
+    border: 1px solid var(--cl-border);
+    border-radius: var(--cl-card-radius);
+    background: var(--cl-surface);
+    box-shadow: var(--cl-card-shadow);
+}
+
+.vehicle-card {
+    --background: var(--cl-surface);
+    --background-activated: var(--cl-surface-muted);
+    --inner-padding-end: 0.875rem;
+    --min-height: 5.5rem;
+    --padding-start: 1rem;
+}
+
+.vehicle-icon,
+.empty-state-icon {
+    display: grid;
+    place-items: center;
+    background: var(--cl-accent-soft);
+    color: var(--cl-accent);
+}
+
+.vehicle-icon {
+    width: 2.75rem;
+    height: 2.75rem;
+    margin-inline-end: 0.875rem;
+    border-radius: 0.875rem;
+    font-size: 1.375rem;
+}
+
+.vehicle-name {
+    margin: 0;
+    color: var(--cl-text);
+    font-size: 1.0625rem;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+}
+
+.vehicle-meta {
     display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    height: 60%;
-    color: #8c8c8c;
+    flex-wrap: wrap;
+    gap: 0.25rem 0.5rem;
+    margin: 0.25rem 0 0;
+    color: var(--cl-text-muted);
+    font-size: 0.875rem;
+    font-variant-numeric: tabular-nums;
+}
+
+.vehicle-meta span + span::before {
+    margin-right: 0.5rem;
+    content: "·";
+}
+
+.vehicle-chevron {
+    margin-inline-start: 0.5rem;
+    color: var(--cl-text-muted);
+    font-size: 1.125rem;
+}
+
+.empty-state {
+    display: grid;
+    min-height: 18rem;
+    place-items: center;
+    align-content: center;
+    gap: 0.625rem;
+    padding: 2rem;
+    border: 1px dashed var(--cl-border);
+    border-radius: var(--cl-card-radius);
+    background: var(--cl-surface);
     text-align: center;
 }
 
+.empty-state-icon {
+    width: 3.5rem;
+    height: 3.5rem;
+    margin-bottom: 0.25rem;
+    border-radius: 1rem;
+    font-size: 1.75rem;
+}
+
+.empty-state h2,
 .empty-state p {
-    margin: 5px 0;
+    margin: 0;
+}
+
+.empty-state h2 {
+    font-size: 1.25rem;
+}
+
+.empty-state p {
+    max-width: 18rem;
+    color: var(--cl-text-muted);
+    font-size: 0.9375rem;
+    line-height: 1.45;
 }
 </style>
