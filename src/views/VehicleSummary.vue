@@ -19,11 +19,13 @@ import {
     IonSpinner,
     IonTitle,
     IonToolbar,
+    actionSheetController,
+    alertController,
     modalController,
     onIonViewWillEnter,
     toastController,
 } from "@ionic/vue";
-import { add } from "ionicons/icons";
+import { add, ellipsisHorizontal } from "ionicons/icons";
 import { computed, ref } from "vue";
 import { useRoute, useRouter } from "vue-router";
 
@@ -104,6 +106,67 @@ async function openVehicleEditModal(): Promise<void> {
     }
 }
 
+async function deleteVehicle(): Promise<void> {
+    const currentVehicle = vehicle.value;
+    if (!currentVehicle) {
+        return;
+    }
+
+    saving.value = true;
+    try {
+        await vehicleStore.deleteVehicle(currentVehicle.id);
+        await showToast("Vehicle deleted.", "primary");
+        await router.replace("/home");
+    } catch (error) {
+        await showToast(
+            `Could not delete vehicle. ${messageFor(error)}`,
+            "danger",
+        );
+    } finally {
+        saving.value = false;
+    }
+}
+
+async function confirmVehicleDelete(): Promise<void> {
+    if (!vehicle.value) {
+        return;
+    }
+
+    const alert = await alertController.create({
+        header: "Delete vehicle?",
+        message:
+            "This will permanently remove the vehicle and its service history.",
+        buttons: [
+            { text: "Cancel", role: "cancel" },
+            {
+                text: "Delete",
+                role: "destructive",
+                handler: () => {
+                    void deleteVehicle();
+                },
+            },
+        ],
+    });
+    await alert.present();
+}
+
+async function openVehicleActions(): Promise<void> {
+    const actionSheet = await actionSheetController.create({
+        header: "Vehicle actions",
+        buttons: [
+            {
+                text: "Delete vehicle",
+                role: "destructive",
+                handler: () => {
+                    void confirmVehicleDelete();
+                },
+            },
+            { text: "Cancel", role: "cancel" },
+        ],
+    });
+    await actionSheet.present();
+}
+
 async function openRecordModal(): Promise<void> {
     if (!vehicle.value) {
         return;
@@ -168,6 +231,13 @@ function openRecord(record: ServiceRecord): void {
                         @click="openVehicleEditModal"
                     >
                         Edit
+                    </ion-button>
+                    <ion-button
+                        aria-label="More vehicle actions"
+                        :disabled="saving"
+                        @click="openVehicleActions"
+                    >
+                        <ion-icon slot="icon-only" :icon="ellipsisHorizontal" />
                     </ion-button>
                 </ion-buttons>
             </ion-toolbar>

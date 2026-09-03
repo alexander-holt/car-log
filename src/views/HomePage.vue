@@ -9,15 +9,11 @@ import {
     IonHeader,
     IonIcon,
     IonItem,
-    IonItemOption,
-    IonItemOptions,
-    IonItemSliding,
     IonLabel,
     IonList,
     IonPage,
     IonTitle,
     IonToolbar,
-    alertController,
     modalController,
     toastController,
 } from "@ionic/vue";
@@ -32,7 +28,6 @@ import { v4 as uuidv4 } from "uuid";
 
 const router = useRouter();
 const vehicleStore = useVehicleStore();
-const vehicleListRef = ref<(typeof IonList & { $el: any }) | null>(null);
 const saving = ref(false);
 
 function messageFor(error: unknown): string {
@@ -64,15 +59,10 @@ function mileageLabel(vehicle: Vehicle): string | undefined {
         : `${vehicle.currentMileage.toLocaleString()} mi`;
 }
 
-async function openVehicleModal(existingVehicle?: Vehicle): Promise<void> {
-    await vehicleListRef.value?.$el?.closeSlidingItems?.();
-
+async function openVehicleModal(): Promise<void> {
     const modal = await modalController.create({
         component: VehicleFormModal,
         presentingElement: document.getElementById("main-content") ?? undefined,
-        componentProps: {
-            vehicle: existingVehicle,
-        },
     });
     await modal.present();
 
@@ -83,16 +73,11 @@ async function openVehicleModal(existingVehicle?: Vehicle): Promise<void> {
 
     saving.value = true;
     try {
-        if (existingVehicle) {
-            await vehicleStore.updateVehicle(existingVehicle.id, data);
-            await showToast("Vehicle updated.", "primary");
-        } else {
-            await vehicleStore.addVehicle({
-                id: uuidv4(),
-                ...data,
-            });
-            await showToast("Vehicle added.", "primary");
-        }
+        await vehicleStore.addVehicle({
+            id: uuidv4(),
+            ...data,
+        });
+        await showToast("Vehicle added.", "primary");
     } catch (error) {
         await showToast(
             `Could not save vehicle. ${messageFor(error)}`,
@@ -101,45 +86,6 @@ async function openVehicleModal(existingVehicle?: Vehicle): Promise<void> {
     } finally {
         saving.value = false;
     }
-}
-
-async function deleteVehicle(id: string): Promise<void> {
-    saving.value = true;
-    try {
-        await vehicleStore.deleteVehicle(id);
-        await showToast("Vehicle deleted.", "primary");
-    } catch (error) {
-        await showToast(
-            `Could not delete vehicle. ${messageFor(error)}`,
-            "danger",
-        );
-    } finally {
-        saving.value = false;
-    }
-}
-
-async function confirmDelete(id: string): Promise<void> {
-    await vehicleListRef.value?.$el?.closeSlidingItems?.();
-
-    const alert = await alertController.create({
-        header: "Delete vehicle?",
-        message:
-            "This permanently removes the vehicle and its service history.",
-        buttons: [
-            {
-                text: "Cancel",
-                role: "cancel",
-            },
-            {
-                text: "Delete",
-                role: "destructive",
-                handler: () => {
-                    void deleteVehicle(id);
-                },
-            },
-        ],
-    });
-    await alert.present();
 }
 </script>
 
@@ -173,81 +119,59 @@ async function confirmDelete(id: string): Promise<void> {
 
                 <ion-list
                     v-else
-                    ref="vehicleListRef"
                     class="vehicle-list"
                     lines="none"
                     aria-label="Vehicles"
                 >
-                    <ion-item-sliding
+                    <ion-item
                         v-for="vehicle in vehicleStore.vehicles"
                         :key="vehicle.id"
-                        class="vehicle-sliding"
+                        button
+                        class="vehicle-card"
+                        :detail="false"
+                        @click="goToVehicle(vehicle.id)"
                     >
-                        <ion-item
-                            button
-                            class="vehicle-card"
-                            :detail="false"
-                            @click="goToVehicle(vehicle.id)"
+                        <span
+                            v-if="vehicle.licensePlate"
+                            slot="start"
+                            class="vehicle-plate"
+                            :aria-label="`License plate ${vehicle.licensePlate}`"
                         >
-                            <span
-                                v-if="vehicle.licensePlate"
-                                slot="start"
-                                class="vehicle-plate"
-                                :aria-label="`License plate ${vehicle.licensePlate}`"
-                            >
-                                <span aria-hidden="true">
-                                    {{ vehicle.licensePlate }}
-                                </span>
+                            <span aria-hidden="true">
+                                {{ vehicle.licensePlate }}
                             </span>
-                            <span v-else slot="start" class="vehicle-icon">
-                                <ion-icon
-                                    aria-hidden="true"
-                                    :icon="carSportOutline"
-                                />
-                            </span>
-                            <ion-label>
-                                <h2 class="vehicle-name">
-                                    {{ vehicle.year }} {{ vehicle.make }}
-                                    {{ vehicle.model }}
-                                </h2>
-                                <p
-                                    v-if="
-                                        mileageLabel(vehicle) ||
-                                        !vehicle.licensePlate
-                                    "
-                                    class="vehicle-meta"
-                                >
-                                    <span v-if="mileageLabel(vehicle)">
-                                        {{ mileageLabel(vehicle) }}
-                                    </span>
-                                    <span v-else>Details not entered</span>
-                                </p>
-                            </ion-label>
+                        </span>
+                        <span v-else slot="start" class="vehicle-icon">
                             <ion-icon
-                                slot="end"
-                                class="vehicle-chevron"
                                 aria-hidden="true"
-                                :icon="chevronForwardOutline"
+                                :icon="carSportOutline"
                             />
-                        </ion-item>
-
-                        <ion-item-options side="end">
-                            <ion-item-option
-                                color="primary"
-                                :disabled="saving"
-                                @click="openVehicleModal(vehicle)"
+                        </span>
+                        <ion-label>
+                            <h2 class="vehicle-name">
+                                {{ vehicle.year }} {{ vehicle.make }}
+                                {{ vehicle.model }}
+                            </h2>
+                            <p
+                                v-if="
+                                    mileageLabel(vehicle) ||
+                                    !vehicle.licensePlate
+                                "
+                                class="vehicle-meta"
                             >
-                                Edit
-                            </ion-item-option>
-                            <ion-item-option
-                                color="danger"
-                                :disabled="saving"
-                                @click="confirmDelete(vehicle.id)"
-                            >
-                                Delete
-                            </ion-item-option>
-                        </ion-item-options>
-                    </ion-item-sliding>
+                                <span v-if="mileageLabel(vehicle)">
+                                    {{ mileageLabel(vehicle) }}
+                                </span>
+                                <span v-else>Details not entered</span>
+                            </p>
+                        </ion-label>
+                        <ion-icon
+                            slot="end"
+                            class="vehicle-chevron"
+                            aria-hidden="true"
+                            :icon="chevronForwardOutline"
+                        />
+                    </ion-item>
                 </ion-list>
             </main>
 
@@ -277,16 +201,13 @@ async function confirmDelete(id: string): Promise<void> {
     background: transparent;
 }
 
-.vehicle-sliding {
+.vehicle-card {
     overflow: hidden;
     margin-bottom: 0.75rem;
     border: 1px solid var(--cl-border);
     border-radius: var(--cl-card-radius);
     background: var(--cl-surface);
     box-shadow: var(--cl-card-shadow);
-}
-
-.vehicle-card {
     --background: var(--cl-surface);
     --background-activated: var(--cl-surface-muted);
     --inner-padding-end: 0.875rem;
@@ -323,12 +244,11 @@ async function confirmDelete(id: string): Promise<void> {
     border-radius: 0.375rem;
     background: var(--cl-accent-soft);
     color: var(--cl-accent);
-    font-family:
-        ui-monospace, "SFMono-Regular", "SF Mono", Menlo, Consolas, monospace;
+    font-family: var(--cl-license-plate-font-family);
     font-size: 0.75rem;
     font-variant-numeric: tabular-nums;
     font-weight: 750;
-    letter-spacing: 0.06em;
+    letter-spacing: var(--cl-license-plate-letter-spacing);
     line-height: 1;
     text-transform: uppercase;
 }

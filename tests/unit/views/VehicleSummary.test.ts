@@ -2,7 +2,12 @@ import { flushPromises, mount } from "@vue/test-utils";
 import { createPinia, setActivePinia } from "pinia";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { nextTick } from "vue";
-import { modalController, toastController } from "@ionic/vue";
+import {
+    actionSheetController,
+    alertController,
+    modalController,
+    toastController,
+} from "@ionic/vue";
 import VehicleFormModal from "@/components/VehicleFormModal.vue";
 import VehicleSummary from "@/views/VehicleSummary.vue";
 import { useServiceRecordStore } from "@/store/serviceRecordStore";
@@ -11,10 +16,11 @@ import { createServiceRecord } from "@/services/serviceRecordRepository";
 import type { ServiceRecord } from "@/types";
 
 const routerPush = vi.hoisted(() => vi.fn());
+const routerReplace = vi.hoisted(() => vi.fn());
 
 vi.mock("vue-router", () => ({
     useRoute: () => ({ params: { id: "vehicle-1" } }),
-    useRouter: () => ({ push: routerPush }),
+    useRouter: () => ({ push: routerPush, replace: routerReplace }),
 }));
 
 vi.mock("@/services/serviceRecordRepository", async (importOriginal) => {
@@ -149,6 +155,35 @@ describe("VehicleSummary", () => {
         expect(presentToast).toHaveBeenCalledOnce();
     });
 
+    it("shows a user-visible error when a record cannot be saved", async () => {
+        vi.mocked(createServiceRecord).mockRejectedValue(
+            new Error("database locked"),
+        );
+        vi.spyOn(modalController, "create").mockResolvedValue({
+            present: vi.fn().mockResolvedValue(undefined),
+            onWillDismiss: vi
+                .fn()
+                .mockResolvedValue({ data: record, role: "confirm" }),
+        } as never);
+        const presentToast = vi.fn().mockResolvedValue(undefined);
+        const toastSpy = vi.spyOn(toastController, "create").mockResolvedValue({
+            present: presentToast,
+        } as never);
+        const wrapper = mount(VehicleSummary, { global });
+
+        await wrapper.get('[data-testid="add-record"]').trigger("click");
+        await flushPromises();
+
+        expect(toastSpy).toHaveBeenCalledWith(
+            expect.objectContaining({
+                message: "Could not save service record. database locked",
+                color: "danger",
+            }),
+        );
+        expect(presentToast).toHaveBeenCalledOnce();
+        expect(useServiceRecordStore().records).toEqual([]);
+    });
+
     it("edits the vehicle from the details toolbar", async () => {
         const updatedVehicle = {
             make: "Honda",
@@ -201,6 +236,65 @@ describe("VehicleSummary", () => {
             }),
         );
         expect(presentToast).toHaveBeenCalledOnce();
+    });
+
+    it("confirms deletion from the vehicle action menu", async () => {
+        const vehicleStore = useVehicleStore();
+        const deleteVehicle = vi
+            .spyOn(vehicleStore, "deleteVehicle")
+            .mockResolvedValue(undefined);
+        const presentActionSheet = vi.fn().mockResolvedValue(undefined);
+        const actionSheetSpy = vi
+            .spyOn(actionSheetController, "create")
+            .mockResolvedValue({ present: presentActionSheet } as never);
+        const presentAlert = vi.fn().mockResolvedValue(undefined);
+        const alertSpy = vi
+            .spyOn(alertController, "create")
+            .mockResolvedValue({ present: presentAlert } as never);
+        const presentToast = vi.fn().mockResolvedValue(undefined);
+        const toastSpy = vi
+            .spyOn(toastController, "create")
+            .mockResolvedValue({ present: presentToast } as never);
+        const wrapper = mount(VehicleSummary, { global });
+
+        await wrapper
+            .get('button[aria-label="More vehicle actions"]')
+            .trigger("click");
+        await flushPromises();
+
+        const actionOptions = actionSheetSpy.mock.calls[0][0] as {
+            buttons: Array<{
+                role?: string;
+                handler?: () => void;
+            }>;
+        };
+        actionOptions.buttons
+            .find((button) => button.role === "destructive")
+            ?.handler?.();
+        await flushPromises();
+
+        const alertOptions = alertSpy.mock.calls[0][0] as {
+            buttons: Array<{
+                role?: string;
+                handler?: () => void;
+            }>;
+        };
+        alertOptions.buttons
+            .find((button) => button.role === "destructive")
+            ?.handler?.();
+        await flushPromises();
+
+        expect(presentActionSheet).toHaveBeenCalledOnce();
+        expect(presentAlert).toHaveBeenCalledOnce();
+        expect(deleteVehicle).toHaveBeenCalledWith("vehicle-1");
+        expect(toastSpy).toHaveBeenCalledWith(
+            expect.objectContaining({
+                message: "Vehicle deleted.",
+                color: "primary",
+            }),
+        );
+        expect(presentToast).toHaveBeenCalledOnce();
+        expect(routerReplace).toHaveBeenCalledWith("/home");
     });
 
     it("opens a service record on its dedicated route", async () => {

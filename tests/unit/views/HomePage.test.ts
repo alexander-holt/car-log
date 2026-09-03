@@ -21,20 +21,12 @@ const global = {
         IonTitle: passthrough,
         IonContent: passthrough,
         IonList: passthrough,
-        IonItemSliding: passthrough,
-        IonItemOptions: passthrough,
         IonLabel: passthrough,
         IonIcon: true,
         IonFab: passthrough,
         IonItem: {
             emits: ["click"],
             template: "<button @click=\"$emit('click')\"><slot /></button>",
-        },
-        IonItemOption: {
-            props: ["disabled"],
-            emits: ["click"],
-            template:
-                '<button :disabled="disabled" @click="$emit(\'click\')"><slot /></button>',
         },
         IonFabButton: {
             props: ["disabled"],
@@ -92,16 +84,16 @@ describe("HomePage", () => {
         expect(wrapper.get(".vehicle-meta").text()).toBe("45,000 mi");
     });
 
-    it("keeps swipe editing and confirms the saved update", async () => {
+    it("adds a vehicle from the garage action", async () => {
         const vehicleStore = useVehicleStore();
-        const updateVehicle = vi
-            .spyOn(vehicleStore, "updateVehicle")
+        const addVehicle = vi
+            .spyOn(vehicleStore, "addVehicle")
             .mockResolvedValue(undefined);
-        const updatedVehicle = {
-            make: "Honda",
-            model: "Civic Si",
-            year: 2020,
-            currentMileage: 46_000,
+        const newVehicle = {
+            make: "Mazda",
+            model: "MX-5",
+            year: 2024,
+            currentMileage: 1_500,
         };
         const presentModal = vi.fn().mockResolvedValue(undefined);
         const createModal = vi
@@ -109,7 +101,7 @@ describe("HomePage", () => {
             .mockResolvedValue({
                 present: presentModal,
                 onWillDismiss: vi.fn().mockResolvedValue({
-                    data: updatedVehicle,
+                    data: newVehicle,
                     role: "confirm",
                 }),
             } as never);
@@ -121,25 +113,22 @@ describe("HomePage", () => {
             } as never);
         const wrapper = mount(HomePage, { global });
 
-        const editButton = wrapper
-            .findAll("button")
-            .find((button) => button.text().trim() === "Edit");
-        await editButton?.trigger("click");
+        await wrapper.get('button[aria-label="Add vehicle"]').trigger("click");
         await flushPromises();
 
         expect(createModal).toHaveBeenCalledWith(
             expect.objectContaining({
                 component: VehicleFormModal,
-                componentProps: {
-                    vehicle: expect.objectContaining({ id: "vehicle-1" }),
-                },
             }),
         );
         expect(presentModal).toHaveBeenCalledOnce();
-        expect(updateVehicle).toHaveBeenCalledWith("vehicle-1", updatedVehicle);
+        expect(addVehicle).toHaveBeenCalledWith({
+            id: expect.any(String),
+            ...newVehicle,
+        });
         expect(createToast).toHaveBeenCalledWith(
             expect.objectContaining({
-                message: "Vehicle updated.",
+                message: "Vehicle added.",
                 color: "primary",
             }),
         );
