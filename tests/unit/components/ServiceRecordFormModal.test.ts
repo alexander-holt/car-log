@@ -1,6 +1,6 @@
 import { flushPromises, mount } from "@vue/test-utils";
-import { describe, expect, it, vi } from "vitest";
-import { toastController } from "@ionic/vue";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { modalController, toastController } from "@ionic/vue";
 import ServiceRecordFormModal from "@/components/ServiceRecordFormModal.vue";
 import type { ServiceRecord } from "@/types";
 
@@ -30,10 +30,10 @@ const global = {
                 '<button :disabled="disabled" @click="$emit(\'click\')"><slot /></button>',
         },
         IonInput: {
-            props: ["label", "modelValue"],
+            props: ["label", "modelValue", "placeholder"],
             emits: ["update:modelValue"],
             template:
-                '<label>{{ label }}<input :value="modelValue" @input="$emit(\'update:modelValue\', $event.target.value)" /><slot /></label>',
+                '<label>{{ label }}<input :value="modelValue" :placeholder="placeholder" @input="$emit(\'update:modelValue\', $event.target.value)" /><slot /></label>',
         },
     },
 };
@@ -63,6 +63,10 @@ const editRecord: ServiceRecord = {
 };
 
 describe("ServiceRecordFormModal", () => {
+    afterEach(() => {
+        vi.restoreAllMocks();
+    });
+
     it("offers every service category and opens newly added services", async () => {
         const wrapper = mount(ServiceRecordFormModal, {
             props: { vehicleId: "vehicle-1", currentMileage: 0 },
@@ -78,6 +82,20 @@ describe("ServiceRecordFormModal", () => {
         expect(wrapper.text()).toContain("Repair");
         expect(wrapper.text()).toContain("Other");
         expect(wrapper.get("form").classes()).toContain("cl-form");
+        expect(
+            wrapper
+                .findAll("input")
+                .map((input) => input.attributes("placeholder"))
+                .filter(Boolean),
+        ).toEqual(
+            expect.arrayContaining([
+                "e.g. 120000",
+                "Optional",
+                "0.00",
+                "Optional service title",
+                "0W-20 full synthetic",
+            ]),
+        );
         expect(wrapper.findAll(".service-item-panel")).toHaveLength(1);
 
         const addButton = wrapper
@@ -93,7 +111,10 @@ describe("ServiceRecordFormModal", () => {
         expect(wrapper.findAll(".service-item-panel")).toHaveLength(1);
     });
 
-    it("allows a valid DIY record with no provider name", () => {
+    it("saves a valid DIY record with no provider name", async () => {
+        const dismiss = vi
+            .spyOn(modalController, "dismiss")
+            .mockResolvedValue(true);
         const wrapper = mount(ServiceRecordFormModal, {
             props: { vehicleId: "vehicle-1", currentMileage: 45_000 },
             global,
@@ -107,8 +128,56 @@ describe("ServiceRecordFormModal", () => {
         const saveButton = wrapper
             .findAll("button")
             .find((button) => button.text().trim() === "Save");
-        expect(saveButton).toBeDefined();
-        expect(saveButton?.attributes("disabled")).toBeUndefined();
+        await saveButton?.trigger("click");
+        await flushPromises();
+
+        expect(dismiss).toHaveBeenCalledWith(
+            expect.objectContaining({
+                providerType: "DIY",
+                providerName: undefined,
+                items: [expect.objectContaining({ serviceType: "OIL_CHANGE" })],
+            }),
+            "confirm",
+        );
+    });
+
+    it("reports an invalid cost alongside other invalid fields", async () => {
+        const presentToast = vi.fn().mockResolvedValue(undefined);
+        vi.spyOn(toastController, "create").mockResolvedValue({
+            present: presentToast,
+            dismiss: vi.fn().mockResolvedValue(true),
+        } as never);
+        const wrapper = mount(ServiceRecordFormModal, {
+            props: { vehicleId: "vehicle-1" },
+            global,
+        });
+        const content = wrapper.get("ion-content")
+            .element as HTMLIonContentElement;
+        const scrollElement = document.createElement("div");
+        vi.spyOn(scrollElement, "getBoundingClientRect").mockReturnValue({
+            top: 0,
+            height: 600,
+        } as DOMRect);
+        content.getScrollElement = vi.fn().mockResolvedValue(scrollElement);
+        content.scrollToPoint = vi.fn().mockResolvedValue(undefined);
+
+        await wrapper.get('input[placeholder="0.00"]').setValue("12.345");
+        await wrapper
+            .findAll("button")
+            .find((button) => button.text().trim() === "Save")
+            ?.trigger("click");
+        await flushPromises();
+
+        expect(wrapper.get(".validation-summary").text()).toContain(
+            "2 fields need attention.",
+        );
+        expect(wrapper.text()).toContain(
+            "Mileage must be a whole number zero or greater.",
+        );
+        expect(wrapper.text()).toContain(
+            "Cost must be zero or greater with at most two decimals.",
+        );
+        expect(presentToast).toHaveBeenCalledOnce();
     });
 
     it("keeps one existing service open and removes it with a trash action", async () => {

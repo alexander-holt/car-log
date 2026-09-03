@@ -208,6 +208,7 @@ async function saveVehicle(): Promise<void> {
                             data-field-path="make"
                             label="Make *"
                             label-placement="stacked"
+                            placeholder="e.g. Honda"
                             autocomplete="organization"
                             required
                         />
@@ -226,6 +227,7 @@ async function saveVehicle(): Promise<void> {
                             data-field-path="model"
                             label="Model *"
                             label-placement="stacked"
+                            placeholder="e.g. Civic"
                             required
                         />
                     </ion-item>
@@ -243,6 +245,7 @@ async function saveVehicle(): Promise<void> {
                             data-field-path="year"
                             label="Year *"
                             label-placement="stacked"
+                            placeholder="e.g. 2020"
                             type="number"
                             inputmode="numeric"
                             min="1886"
@@ -269,6 +272,7 @@ async function saveVehicle(): Promise<void> {
                             data-field-path="currentMileage"
                             label="Current mileage"
                             label-placement="stacked"
+                            placeholder="e.g. 120000"
                             type="number"
                             inputmode="numeric"
                             min="0"
@@ -288,10 +292,15 @@ async function saveVehicle(): Promise<void> {
                     <ion-item>
                         <ion-input
                             v-model="formData.licensePlate"
-                            label="License plate"
+                            class="license-plate-input"
                             label-placement="stacked"
+                            placeholder="e.g. 62ADL8"
                             autocapitalize="characters"
-                        />
+                        >
+                            <span slot="label" class="license-plate-label">
+                                License plate
+                            </span>
+                        </ion-input>
                     </ion-item>
 
                     <ion-item>
@@ -318,7 +327,7 @@ async function saveVehicle(): Promise<void> {
                             v-model="formData.engineType"
                             label="Engine"
                             label-placement="stacked"
-                            placeholder="V6, EV, Hybrid"
+                            placeholder="e.g. 2.0L turbo, hybrid, or EV"
                         />
                     </ion-item>
                 </ion-list>
@@ -351,10 +360,6 @@ async function saveVehicle(): Promise<void> {
 
 .validation-summary ion-icon {
     font-size: 1.125rem;
-}
-
-.form-section + .form-section {
-    margin-top: 1.75rem;
 }
 
 .form-section > h2 {

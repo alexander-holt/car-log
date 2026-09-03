@@ -34,6 +34,10 @@
     --cl-form-control-padding-block: 0.4375rem;
     --cl-form-label-size: 0.8125rem;
     --cl-form-value-size: 1rem;
+    --cl-form-section-gap: 1.5rem;
+    --cl-license-plate-font-family:
+        ui-monospace, "SFMono-Regular", "SF Mono", Menlo, Consolas, monospace;
+    --cl-license-plate-letter-spacing: 0.06em;
 
     --ion-background-color: var(--cl-canvas);
     --ion-background-color-rgb: 242, 239, 244;
@@ -164,14 +168,6 @@ ion-toolbar {
     font-size: var(--cl-form-value-size);
 }
 
-.cl-form ion-input::part(label),
-.cl-form ion-select::part(label),
-.cl-form ion-textarea::part(label) {
-    margin-bottom: 0.125rem;
-    color: var(--cl-text-muted);
-    font-size: var(--cl-form-label-size);
-}
-
 .cl-form .field-affix {
     color: var(--cl-text-muted);
     font-size: 0.875rem;
@@ -179,6 +175,26 @@ ion-toolbar {
 
 .cl-form .field-error {
     padding-inline: var(--cl-form-padding-inline);
+}
+
+.cl-form .form-section + .form-section {
+    margin-top: var(--cl-form-section-gap);
+}
+
+.cl-form .license-plate-input {
+    --ion-font-family: var(--cl-license-plate-font-family);
+    font-weight: 400;
+    letter-spacing: var(--cl-license-plate-letter-spacing);
+    text-transform: uppercase;
+}
+
+.cl-form .license-plate-label {
+    color: var(--cl-text-muted);
+    font-family: var(--ion-default-font);
+    font-size: var(--cl-form-label-size);
+    font-weight: 400;
+    letter-spacing: normal;
+    text-transform: none;
 }
 
 ion-header[collapse="condense"] ion-toolbar {

@@ -178,7 +178,7 @@ function buildItem(item: EditableItem): ServiceItem {
     }
 }
 
-function buildRecord(): ServiceRecord {
+function buildRecord(totalCostCents: number | undefined): ServiceRecord {
     return {
         id: recordId,
         vehicleId: props.vehicleId,
@@ -189,26 +189,30 @@ function buildRecord(): ServiceRecord {
                 : Number(formData.mileage),
         providerType: formData.providerType,
         providerName: normalizeOptionalText(formData.providerName),
-        totalCostCents: parseCostToCents(formData.cost),
+        totalCostCents,
         notes: normalizeOptionalText(formData.notes),
         items: formData.items.map(buildItem),
     };
 }
 
 const validationIssues = computed<ValidationIssue[]>(() => {
+    const issues: ValidationIssue[] = [];
+    let totalCostCents: number | undefined;
+
     try {
-        return validateServiceRecord(buildRecord(), today);
+        totalCostCents = parseCostToCents(formData.cost);
     } catch (error) {
-        return [
-            {
-                path: "totalCostCents",
-                message:
-                    error instanceof Error
-                        ? error.message
-                        : "Enter a valid cost.",
-            },
-        ];
+        issues.push({
+            path: "totalCostCents",
+            message:
+                error instanceof Error ? error.message : "Enter a valid cost.",
+        });
     }
+
+    return [
+        ...issues,
+        ...validateServiceRecord(buildRecord(totalCostCents), today),
+    ];
 });
 
 const isFormValid = computed(() => validationIssues.value.length === 0);
@@ -271,7 +275,8 @@ function removeItem(index: number): void {
     }
 }
 
-function cancel(): void {
+async function cancel(): Promise<void> {
+    await dismissValidationToast();
     void modalController.dismiss(null, "cancel");
 }
 
@@ -355,7 +360,10 @@ async function saveRecord(): Promise<void> {
         return;
     }
     await dismissValidationToast();
-    void modalController.dismiss(buildRecord(), "confirm");
+    void modalController.dismiss(
+        buildRecord(parseCostToCents(formData.cost)),
+        "confirm",
+    );
 }
 </script>
 
@@ -422,6 +430,7 @@ async function saveRecord(): Promise<void> {
                             data-field-path="mileage"
                             label="Mileage *"
                             label-placement="stacked"
+                            placeholder="e.g. 120000"
                             type="number"
                             inputmode="numeric"
                             min="0"
@@ -463,6 +472,7 @@ async function saveRecord(): Promise<void> {
                                     : 'Person name'
                             "
                             label-placement="stacked"
+                            placeholder="Optional"
                             :maxlength="120"
                         />
                     </ion-item>
@@ -473,6 +483,7 @@ async function saveRecord(): Promise<void> {
                             data-field-path="totalCostCents"
                             label="Total cost"
                             label-placement="stacked"
+                            placeholder="0.00"
                             type="number"
                             inputmode="decimal"
                             min="0"
@@ -494,6 +505,7 @@ async function saveRecord(): Promise<void> {
                             v-model="formData.notes"
                             label="Record notes"
                             label-placement="stacked"
+                            placeholder="Work performed, parts, or follow-up notes"
                             :rows="3"
                             :maxlength="2000"
                         />
@@ -594,6 +606,11 @@ async function saveRecord(): Promise<void> {
                                             : 'Title'
                                     "
                                     label-placement="stacked"
+                                    :placeholder="
+                                        item.serviceType === 'OTHER'
+                                            ? 'Describe this service'
+                                            : 'Optional service title'
+                                    "
                                     :maxlength="120"
                                 />
                             </ion-item>
@@ -645,6 +662,7 @@ async function saveRecord(): Promise<void> {
                                         :data-field-path="`items.${index}.treadDepthRemaining`"
                                         label="Tread depth"
                                         label-placement="stacked"
+                                        placeholder="e.g. 8"
                                         type="number"
                                         inputmode="decimal"
                                         min="0"
@@ -678,6 +696,7 @@ async function saveRecord(): Promise<void> {
                                     v-model="item.notes"
                                     label="Notes"
                                     label-placement="stacked"
+                                    placeholder="Parts, results, or follow-up notes"
                                     :rows="2"
                                     :maxlength="1000"
                                 />
@@ -797,10 +816,6 @@ async function saveRecord(): Promise<void> {
 
 .save-button {
     font-weight: 650;
-}
-
-.items-section {
-    margin-top: 1.75rem;
 }
 
 .service-item-card {
