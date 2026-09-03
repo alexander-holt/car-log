@@ -29,6 +29,11 @@
     --cl-card-radius: 1rem;
     --cl-card-shadow: none;
     --cl-page-gutter: 1rem;
+    --cl-form-row-min-height: 4rem;
+    --cl-form-padding-inline: 1rem;
+    --cl-form-control-padding-block: 0.4375rem;
+    --cl-form-label-size: 0.8125rem;
+    --cl-form-value-size: 1rem;
 
     --ion-background-color: var(--cl-canvas);
     --ion-background-color-rgb: 242, 239, 244;
@@ -141,6 +146,39 @@ ion-toolbar {
     --background: var(--ion-toolbar-background);
     --border-color: var(--cl-border);
     color: var(--cl-text);
+}
+
+.cl-form .form-group ion-item,
+.cl-form .service-item-panel ion-item {
+    --inner-padding-end: var(--cl-form-padding-inline);
+    --min-height: var(--cl-form-row-min-height);
+    --padding-start: var(--cl-form-padding-inline);
+}
+
+.cl-form ion-input,
+.cl-form ion-select,
+.cl-form ion-textarea {
+    --color: var(--cl-text);
+    --padding-bottom: var(--cl-form-control-padding-block);
+    --padding-top: var(--cl-form-control-padding-block);
+    font-size: var(--cl-form-value-size);
+}
+
+.cl-form ion-input::part(label),
+.cl-form ion-select::part(label),
+.cl-form ion-textarea::part(label) {
+    margin-bottom: 0.125rem;
+    color: var(--cl-text-muted);
+    font-size: var(--cl-form-label-size);
+}
+
+.cl-form .field-affix {
+    color: var(--cl-text-muted);
+    font-size: 0.875rem;
+}
+
+.cl-form .field-error {
+    padding-inline: var(--cl-form-padding-inline);
 }
 
 ion-header[collapse="condense"] ion-toolbar {

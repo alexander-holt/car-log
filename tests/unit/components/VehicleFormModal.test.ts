@@ -21,10 +21,10 @@ const global = {
             template: "<button @click=\"$emit('click')\"><slot /></button>",
         },
         IonInput: {
-            props: ["label", "modelValue"],
+            props: ["label", "modelValue", "placeholder"],
             emits: ["update:modelValue"],
             template:
-                '<label>{{ label }}<input :value="modelValue" @input="$emit(\'update:modelValue\', $event.target.value)" /><slot /></label>',
+                '<label>{{ label }}<input :value="modelValue" :placeholder="placeholder" @input="$emit(\'update:modelValue\', $event.target.value)" /><slot /></label>',
         },
     },
 };
@@ -55,6 +55,10 @@ describe("VehicleFormModal", () => {
         expect(wrapper.text()).toContain("Edit vehicle");
         expect(wrapper.text()).toContain("Vehicle");
         expect(wrapper.text()).toContain("Details");
+        expect(wrapper.get("form").classes()).toContain("cl-form");
+        expect(
+            wrapper.get('input[placeholder="17-character VIN"]').element,
+        ).toBe(wrapper.get('[data-field-path="vin"] input').element);
         expect(wrapper.find(".validation-summary").exists()).toBe(false);
 
         const saveButton = wrapper

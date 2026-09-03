@@ -77,6 +77,7 @@ describe("ServiceRecordFormModal", () => {
         expect(wrapper.text()).toContain("Inspection");
         expect(wrapper.text()).toContain("Repair");
         expect(wrapper.text()).toContain("Other");
+        expect(wrapper.get("form").classes()).toContain("cl-form");
         expect(wrapper.findAll(".service-item-panel")).toHaveLength(1);
 
         const addButton = wrapper

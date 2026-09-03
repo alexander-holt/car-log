@@ -379,7 +379,7 @@ async function saveRecord(): Promise<void> {
     <ion-content>
         <form
             ref="formRef"
-            class="service-record-form"
+            class="cl-form service-record-form"
             @submit.prevent="saveRecord"
         >
             <div
@@ -776,13 +776,11 @@ async function saveRecord(): Promise<void> {
 .service-item-panel ion-item {
     --background: transparent;
     --border-color: var(--cl-border);
-    --inner-padding-end: 1rem;
-    --min-height: 4.5rem;
-    --padding-start: 1rem;
 }
 
 .provider-field {
-    padding: 0.75rem 1rem;
+    min-height: var(--cl-form-row-min-height);
+    padding: 0.625rem var(--cl-form-padding-inline);
     border-bottom: 1px solid var(--cl-border);
 }
 
@@ -790,16 +788,11 @@ async function saveRecord(): Promise<void> {
     display: block;
     margin-bottom: 0.625rem;
     color: var(--cl-text-muted);
-    font-size: 0.875rem;
+    font-size: var(--cl-form-label-size);
 }
 
 .provider-field ion-segment {
     --background: var(--cl-surface-muted);
-}
-
-.field-affix {
-    color: var(--cl-text-muted);
-    font-size: 0.9375rem;
 }
 
 .save-button {
@@ -930,7 +923,7 @@ async function saveRecord(): Promise<void> {
 .field-error {
     display: block;
     margin: 0;
-    padding: 0.5rem 1rem 0.625rem;
+    padding-block: 0.5rem 0.625rem;
     border-bottom: 1px solid var(--cl-border);
     background: var(--cl-danger-soft);
     font-size: 0.8125rem;

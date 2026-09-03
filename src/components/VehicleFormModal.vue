@@ -185,7 +185,11 @@ async function saveVehicle(): Promise<void> {
     </ion-header>
 
     <ion-content>
-        <form ref="formRef" class="vehicle-form" @submit.prevent="saveVehicle">
+        <form
+            ref="formRef"
+            class="cl-form vehicle-form"
+            @submit.prevent="saveVehicle"
+        >
             <div
                 v-if="showValidationErrors && !isFormValid"
                 class="validation-summary"
@@ -296,6 +300,7 @@ async function saveVehicle(): Promise<void> {
                             data-field-path="vin"
                             label="VIN"
                             label-placement="stacked"
+                            placeholder="17-character VIN"
                             autocapitalize="characters"
                             :maxlength="17"
                         />
@@ -372,20 +377,12 @@ async function saveVehicle(): Promise<void> {
 .form-group ion-item {
     --background: transparent;
     --border-color: var(--cl-border);
-    --inner-padding-end: 1rem;
-    --min-height: 4.5rem;
-    --padding-start: 1rem;
-}
-
-.field-affix {
-    color: var(--cl-text-muted);
-    font-size: 0.9375rem;
 }
 
 .field-error {
     display: block;
     margin: 0;
-    padding: 0.5rem 1rem 0.625rem;
+    padding-block: 0.5rem 0.625rem;
     border-bottom: 1px solid var(--cl-border);
     background: var(--cl-danger-soft);
     font-size: 0.8125rem;
