@@ -131,6 +131,17 @@ export function validateVehicle(
             message: "Mileage must be a whole number zero or greater.",
         });
     }
+    if (
+        vehicle.mileageReminderIntervalDays !== undefined &&
+        (!Number.isSafeInteger(vehicle.mileageReminderIntervalDays) ||
+            vehicle.mileageReminderIntervalDays <= 0)
+    ) {
+        issues.push({
+            path: "mileageReminderIntervalDays",
+            message:
+                "Reminder interval must be a whole number of days greater than zero.",
+        });
+    }
 
     const vinError = validateVin(vehicle.vin);
     if (vinError) {

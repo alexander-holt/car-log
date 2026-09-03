@@ -12,6 +12,13 @@ interface VehicleRow extends Omit<Vehicle, "mileageRemindersEnabled"> {
     mileageRemindersEnabled?: number | boolean;
 }
 
+export interface MileageUpdate {
+    mileage: number;
+    allowCorrection?: boolean;
+    mileageReminderIntervalDays: number;
+    mileageRemindersEnabled: boolean;
+}
+
 function mapVehicleRow(row: VehicleRow): Vehicle {
     return {
         id: row.id,
@@ -23,11 +30,10 @@ function mapVehicleRow(row: VehicleRow): Vehicle {
         engineType: row.engineType ?? undefined,
         currentMileage: row.currentMileage ?? undefined,
         mileageUpdatedAt: row.mileageUpdatedAt ?? undefined,
-        mileageReminderIntervalDays:
-            row.mileageReminderIntervalDays ?? undefined,
+        mileageReminderIntervalDays: row.mileageReminderIntervalDays ?? 30,
         mileageRemindersEnabled:
             row.mileageRemindersEnabled === undefined
-                ? undefined
+                ? true
                 : row.mileageRemindersEnabled === true ||
                   row.mileageRemindersEnabled === 1,
     };
@@ -95,6 +101,9 @@ export const useVehicleStore = defineStore("vehicles", () => {
             id,
             ...normalized,
             mileageUpdatedAt,
+            mileageReminderIntervalDays:
+                normalized.mileageReminderIntervalDays ?? 30,
+            mileageRemindersEnabled: normalized.mileageRemindersEnabled ?? true,
         });
     }
 
@@ -118,7 +127,9 @@ export const useVehicleStore = defineStore("vehicles", () => {
         await db.run(
             `UPDATE vehicles
              SET make = ?, model = ?, year = ?, vin = ?, licensePlate = ?,
-                 engineType = ?, currentMileage = ?, mileageUpdatedAt = ?, updatedAt = ?
+                 engineType = ?, currentMileage = ?, mileageUpdatedAt = ?,
+                 mileageReminderIntervalDays = ?, mileageRemindersEnabled = ?,
+                 updatedAt = ?
              WHERE id = ?;`,
             [
                 normalized.make,
@@ -129,6 +140,8 @@ export const useVehicleStore = defineStore("vehicles", () => {
                 normalized.engineType ?? null,
                 normalized.currentMileage ?? null,
                 mileageUpdatedAt ?? null,
+                normalized.mileageReminderIntervalDays ?? 30,
+                normalized.mileageRemindersEnabled === false ? 0 : 1,
                 updatedAt,
                 id,
             ],
@@ -144,6 +157,63 @@ export const useVehicleStore = defineStore("vehicles", () => {
         }
     }
 
+    async function updateMileage(
+        id: string,
+        update: MileageUpdate,
+    ): Promise<void> {
+        const vehicle = vehicles.value.find((candidate) => candidate.id === id);
+        if (!vehicle) {
+            throw new Error("Vehicle was not found.");
+        }
+        if (!Number.isSafeInteger(update.mileage) || update.mileage < 0) {
+            throw new Error("Mileage must be a whole number zero or greater.");
+        }
+        if (
+            !Number.isSafeInteger(update.mileageReminderIntervalDays) ||
+            update.mileageReminderIntervalDays <= 0
+        ) {
+            throw new Error(
+                "Reminder interval must be a whole number of days greater than zero.",
+            );
+        }
+        if (
+            vehicle.currentMileage !== undefined &&
+            update.mileage < vehicle.currentMileage &&
+            !update.allowCorrection
+        ) {
+            throw new Error(
+                "Mileage is lower than the saved value. Confirm an odometer correction to continue.",
+            );
+        }
+
+        const timestamp = new Date().toISOString();
+        const db = databaseService.getDb();
+        const result = await db.run(
+            `UPDATE vehicles
+             SET currentMileage = ?, mileageUpdatedAt = ?,
+                 mileageReminderIntervalDays = ?, mileageRemindersEnabled = ?,
+                 updatedAt = ?
+             WHERE id = ?;`,
+            [
+                update.mileage,
+                timestamp,
+                update.mileageReminderIntervalDays,
+                update.mileageRemindersEnabled ? 1 : 0,
+                timestamp,
+                id,
+            ],
+        );
+        if ((result.changes?.changes ?? 0) === 0) {
+            throw new Error("Vehicle was not found.");
+        }
+
+        vehicle.currentMileage = update.mileage;
+        vehicle.mileageUpdatedAt = timestamp;
+        vehicle.mileageReminderIntervalDays =
+            update.mileageReminderIntervalDays;
+        vehicle.mileageRemindersEnabled = update.mileageRemindersEnabled;
+    }
+
     async function deleteVehicle(id: string): Promise<void> {
         const db = databaseService.getDb();
         await db.run("DELETE FROM vehicles WHERE id = ?;", [id]);
@@ -155,6 +225,7 @@ export const useVehicleStore = defineStore("vehicles", () => {
         loadVehicles,
         addVehicle,
         updateVehicle,
+        updateMileage,
         deleteVehicle,
     };
 });
