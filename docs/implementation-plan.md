@@ -1,6 +1,6 @@
 # CarLog implementation plan
 
-Status: Phase 1 completed and was verified on August 31, 2026. Phase 2 completed, was verified, and merged on September 3, 2026. Automated pull request validation merged and was verified on September 3, 2026. Phase 3 is next.
+Status: Phase 1 completed and was verified on August 31, 2026. Phase 2 completed, was verified, and merged on September 3, 2026. Automated pull request validation merged and was verified on September 3, 2026. Phase 3 completed and was verified on September 3, 2026. Phase 4 is next.
 
 ## Objective
 
@@ -462,21 +462,33 @@ Completion record:
 
 ### Phase 3: implement schedules and in-app reminders
 
-- Add schedule types, persistence, store, and forms.
-- Add Upcoming Maintenance above service history.
-- Calculate upcoming, due-soon, and overdue states.
-- Show the nearest maintenance item on each vehicle in My Garage.
-- Add manual odometer updates and stale-mileage prompts.
-- Connect service items to schedules.
-- Advance all completed schedules in the service-record transaction.
-- Prevent duplicate active schedules for standard service keys.
+- [x] Add schedule types, persistence, store, and forms.
+- [x] Add Upcoming Maintenance above service history.
+- [x] Calculate upcoming, due-soon, and overdue states.
+- [x] Show the nearest maintenance item on each vehicle in My Garage.
+- [x] Add manual odometer updates and stale-mileage prompts.
+- [x] Connect service items to schedules.
+- [x] Advance all completed schedules in the service-record transaction.
+- [x] Prevent duplicate active schedules for standard service keys.
 
 Exit criteria:
 
-- Users can create, edit, disable, and delete schedules.
-- Date and mileage boundaries produce the expected state.
-- One mixed service record can complete several schedules.
-- The vehicle summary updates immediately after mileage changes.
+- [x] Users can create, edit, disable, and delete schedules.
+- [x] Date and mileage boundaries produce the expected state.
+- [x] One mixed service record can complete several schedules.
+- [x] The vehicle summary updates immediately after mileage changes.
+
+Completion record:
+
+- Maintenance schedule types, validation, repository operations, and Pinia state now cover mileage intervals, time intervals, or both. Due state is calculated from the current local calendar date and vehicle mileage and is never stored.
+- The released version 1 schema already contained every Phase 3 table, column, foreign key, index, and uniqueness rule, so Phase 3 did not add or edit a migration. Repository validation adds clear duplicate errors, including distinct-label handling for active Other schedules.
+- Service items can link to one schedule. Creating or editing a mixed record advances every linked schedule from the completed date and mileage in the same SQLite transaction as the record, items, details, and vehicle mileage. Integration tests force a later schedule update to fail and verify that every earlier write rolls back.
+- Deleting a schedule keeps service history and clears linked service-item references through `ON DELETE SET NULL`. The loaded service-record store clears the same references immediately.
+- Vehicle details show Upcoming Maintenance above service history, with create, edit, enable, disable, delete, and Log service actions. My Garage shows the nearest active maintenance item for each vehicle.
+- The fast odometer flow updates mileage and reminder preferences, requires confirmation before lowering an odometer value, and refreshes due states immediately. Stale prompts use `mileageUpdatedAt`, the enabled preference, and the configured day interval.
+- `npm run check`, all three Cypress end-to-end specs against a ready Vite server, and `npm run build:mobile` passed. Unit coverage has 81 tests and SQLite integration coverage has 17 tests.
+- The app built, deployed, and relaunched on an iOS 26.1 iPhone 16e simulator. Existing vehicle and service history data survived and the new maintenance section rendered. Android `assembleDebug` passed; no Android emulator or device was connected for a launch and persistence smoke test.
+- Phase 4 notification dependencies, permissions, scheduling, reconciliation, and tap routing were not started.
 
 ### Phase 4: add local notifications
 
@@ -561,10 +573,10 @@ Exit criteria:
 
 ## Known current gaps
 
-- Maintenance schedules, due-state behavior, reminders, and notifications remain for Phases 3 and 4.
-- End-to-end coverage checks browser database startup and the garage empty state, but the main service-record user journey remains for release hardening.
+- Device notifications remain for Phase 4.
+- End-to-end coverage now checks browser database startup, the garage empty state, and the Phase 3 schedule and service completion journey. Broader service-record journeys remain for release hardening.
 - The native application ID still uses the Ionic starter value.
 
 ## Next implementation step
 
-Implement Phase 3 on `feat/phase-3-maintenance-schedules`, created from the latest `main`. Merge it before starting Phase 4. Do not add local-notification work to the Phase 3 branch.
+Merge `feat/phase-3-maintenance-schedules` before starting Phase 4 on `feat/phase-4-local-notifications`. Do not add local-notification work to the Phase 3 branch.
