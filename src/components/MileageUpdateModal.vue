@@ -96,6 +96,7 @@ function save(): void {
                 <ion-item>
                     <ion-input
                         v-model="formData.mileage"
+                        data-field-path="currentMileage"
                         label="Current mileage *"
                         label-placement="stacked"
                         type="number"
@@ -136,6 +137,7 @@ function save(): void {
                 <ion-item>
                     <ion-input
                         v-model="formData.mileageReminderIntervalDays"
+                        data-field-path="mileageReminderIntervalDays"
                         :disabled="!formData.mileageRemindersEnabled"
                         label="Remind me after"
                         label-placement="stacked"

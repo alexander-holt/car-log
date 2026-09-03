@@ -5,6 +5,7 @@ import { modalController, toastController } from "@ionic/vue";
 import HomePage from "@/views/HomePage.vue";
 import VehicleFormModal from "@/components/VehicleFormModal.vue";
 import { useVehicleStore } from "@/store/vehicleStore";
+import { useMaintenanceScheduleStore } from "@/store/maintenanceScheduleStore";
 
 const routerPush = vi.hoisted(() => vi.fn());
 
@@ -50,6 +51,17 @@ describe("HomePage", () => {
                 licensePlate: "CARLOG",
             },
         ];
+        useMaintenanceScheduleStore().schedules = [
+            {
+                id: "schedule-1",
+                vehicleId: "vehicle-1",
+                serviceType: "OIL_CHANGE",
+                intervalMileage: 5_000,
+                nextDueMileage: 45_500,
+                reminderLeadMileage: 500,
+                enabled: true,
+            },
+        ];
         routerPush.mockReset();
     });
 
@@ -67,6 +79,9 @@ describe("HomePage", () => {
             "License plate CARLOG",
         );
         expect(wrapper.get(".vehicle-meta").text()).toBe("45,000 mi");
+        expect(wrapper.get(".vehicle-maintenance").text()).toBe(
+            "Due soon: Oil change",
+        );
         expect(wrapper.text()).not.toContain("Plate CARLOG");
 
         await wrapper.get(".vehicle-card").trigger("click");
@@ -143,5 +158,20 @@ describe("HomePage", () => {
         expect(wrapper.text()).toContain(
             "Add your first vehicle to start its service history.",
         );
+    });
+
+    it("shows a retry action when maintenance summaries fail", async () => {
+        const store = useMaintenanceScheduleStore();
+        store.error = "database locked";
+        const loadSchedules = vi
+            .spyOn(store, "loadSchedules")
+            .mockResolvedValue(undefined);
+        const wrapper = mount(HomePage, { global });
+
+        expect(wrapper.get(".garage-error").text()).toContain(
+            "Could not load maintenance summaries.",
+        );
+        await wrapper.get(".garage-error button").trigger("click");
+        expect(loadSchedules).toHaveBeenCalledOnce();
     });
 });

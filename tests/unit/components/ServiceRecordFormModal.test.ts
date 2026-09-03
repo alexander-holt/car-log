@@ -141,6 +141,48 @@ describe("ServiceRecordFormModal", () => {
         );
     });
 
+    it("prefills and completes a selected maintenance schedule", async () => {
+        const dismiss = vi
+            .spyOn(modalController, "dismiss")
+            .mockResolvedValue(true);
+        const linkedSchedule = {
+            id: "schedule-oil",
+            vehicleId: "vehicle-1",
+            serviceType: "OIL_CHANGE" as const,
+            intervalMileage: 5_000,
+            nextDueMileage: 50_000,
+            enabled: true,
+        };
+        const wrapper = mount(ServiceRecordFormModal, {
+            props: {
+                vehicleId: "vehicle-1",
+                currentMileage: 50_000,
+                schedules: [linkedSchedule],
+                schedule: linkedSchedule,
+            },
+            global,
+        });
+
+        expect(wrapper.text()).toContain("Oil change");
+        await wrapper
+            .findAll("button")
+            .find((button) => button.text().trim() === "Save")
+            ?.trigger("click");
+        await flushPromises();
+
+        expect(dismiss).toHaveBeenCalledWith(
+            expect.objectContaining({
+                items: [
+                    expect.objectContaining({
+                        serviceType: "OIL_CHANGE",
+                        scheduleId: "schedule-oil",
+                    }),
+                ],
+            }),
+            "confirm",
+        );
+    });
+
     it("reports an invalid cost alongside other invalid fields", async () => {
         const presentToast = vi.fn().mockResolvedValue(undefined);
         vi.spyOn(toastController, "create").mockResolvedValue({

@@ -126,10 +126,8 @@ export function scheduleName(schedule: MaintenanceSchedule): string {
         return schedule.label ?? "Other";
     }
 
-    return schedule.serviceType
-        .split("_")
-        .map((word) => word.charAt(0) + word.slice(1).toLowerCase())
-        .join(" ");
+    const label = schedule.serviceType.toLowerCase().replaceAll("_", " ");
+    return label.charAt(0).toUpperCase() + label.slice(1);
 }
 
 export function normalizeMaintenanceSchedule(

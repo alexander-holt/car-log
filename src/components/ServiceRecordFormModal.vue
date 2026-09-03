@@ -31,6 +31,7 @@ import {
 import { computed, nextTick, reactive, ref } from "vue";
 import { v4 as uuidv4 } from "uuid";
 import { presentationFor } from "@/services/serviceRecordPresentation";
+import { scheduleName } from "@/services/maintenanceScheduleService";
 import {
     getLocalDateString,
     normalizeOptionalText,
@@ -40,6 +41,7 @@ import {
 } from "@/services/serviceRecordValidation";
 import {
     SERVICE_TYPES,
+    type MaintenanceSchedule,
     type ProviderType,
     type ServiceItem,
     type ServiceRecord,
@@ -50,6 +52,8 @@ const props = defineProps<{
     vehicleId: string;
     record?: ServiceRecord;
     currentMileage?: number;
+    schedules?: MaintenanceSchedule[];
+    schedule?: MaintenanceSchedule;
 }>();
 
 interface EditableItem {
@@ -95,12 +99,13 @@ function toEditableItem(item: ServiceItem): EditableItem {
     };
 }
 
-function newItem(): EditableItem {
+function newItem(schedule?: MaintenanceSchedule): EditableItem {
     return {
         id: uuidv4(),
-        serviceType: "OIL_CHANGE",
-        title: "",
+        serviceType: schedule?.serviceType ?? "OIL_CHANGE",
+        title: schedule?.serviceType === "OTHER" ? (schedule.label ?? "") : "",
         notes: "",
+        scheduleId: schedule?.id,
         oilType: "",
         filterReplaced: false,
         treadDepthRemaining: null,
@@ -117,7 +122,7 @@ const formData = reactive<FormState>({
             ? ""
             : (props.record.totalCostCents / 100).toFixed(2),
     notes: props.record?.notes ?? "",
-    items: props.record?.items.map(toEditableItem) ?? [newItem()],
+    items: props.record?.items.map(toEditableItem) ?? [newItem(props.schedule)],
 });
 const openItemId = ref<string | null>(
     isEditMode.value ? null : (formData.items[0]?.id ?? null),
@@ -264,6 +269,24 @@ function addItem(): void {
     const item = newItem();
     formData.items.push(item);
     openItemId.value = item.id;
+}
+
+function scheduleOptions(item: EditableItem): MaintenanceSchedule[] {
+    return (props.schedules ?? []).filter(
+        (schedule) =>
+            schedule.vehicleId === props.vehicleId &&
+            schedule.serviceType === item.serviceType &&
+            (schedule.enabled || schedule.id === item.scheduleId),
+    );
+}
+
+function onServiceTypeChanged(item: EditableItem): void {
+    const selectedSchedule = (props.schedules ?? []).find(
+        (schedule) => schedule.id === item.scheduleId,
+    );
+    if (selectedSchedule?.serviceType !== item.serviceType) {
+        item.scheduleId = undefined;
+    }
 }
 
 function removeItem(index: number): void {
@@ -585,6 +608,7 @@ async function saveRecord(): Promise<void> {
                                     label="Category *"
                                     label-placement="stacked"
                                     interface="action-sheet"
+                                    @ion-change="onServiceTypeChanged(item)"
                                 >
                                     <ion-select-option
                                         v-for="serviceType in SERVICE_TYPES"
@@ -592,6 +616,29 @@ async function saveRecord(): Promise<void> {
                                         :value="serviceType"
                                     >
                                         {{ presentationFor(serviceType).label }}
+                                    </ion-select-option>
+                                </ion-select>
+                            </ion-item>
+
+                            <ion-item v-if="scheduleOptions(item).length > 0">
+                                <ion-select
+                                    v-model="item.scheduleId"
+                                    label="Completes schedule"
+                                    label-placement="stacked"
+                                    interface="action-sheet"
+                                    placeholder="No schedule"
+                                >
+                                    <ion-select-option :value="undefined">
+                                        No schedule
+                                    </ion-select-option>
+                                    <ion-select-option
+                                        v-for="optionSchedule in scheduleOptions(
+                                            item,
+                                        )"
+                                        :key="optionSchedule.id"
+                                        :value="optionSchedule.id"
+                                    >
+                                        {{ scheduleName(optionSchedule) }}
                                     </ion-select-option>
                                 </ion-select>
                             </ion-item>

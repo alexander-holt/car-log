@@ -9,7 +9,9 @@ import {
     toastController,
 } from "@ionic/vue";
 import VehicleFormModal from "@/components/VehicleFormModal.vue";
+import MileageUpdateModal from "@/components/MileageUpdateModal.vue";
 import VehicleSummary from "@/views/VehicleSummary.vue";
+import { useMaintenanceScheduleStore } from "@/store/maintenanceScheduleStore";
 import { useServiceRecordStore } from "@/store/serviceRecordStore";
 import { useVehicleStore } from "@/store/vehicleStore";
 import { createServiceRecord } from "@/services/serviceRecordRepository";
@@ -53,6 +55,8 @@ const global = {
         IonTitle: passthrough,
         IonContent: passthrough,
         IonNote: passthrough,
+        IonChip: passthrough,
+        IonLabel: passthrough,
         IonSpinner: { template: '<span data-testid="spinner" />' },
         IonFab: passthrough,
         IonIcon: true,
@@ -101,9 +105,71 @@ describe("VehicleSummary", () => {
                 model: "Civic",
                 year: 2020,
                 currentMileage: 40_000,
+                mileageRemindersEnabled: true,
             },
         ];
         vi.clearAllMocks();
+    });
+
+    it("shows upcoming maintenance above history with its derived state", () => {
+        useMaintenanceScheduleStore().schedules = [
+            {
+                id: "schedule-oil",
+                vehicleId: "vehicle-1",
+                serviceType: "OIL_CHANGE",
+                intervalMileage: 5_000,
+                nextDueMileage: 40_500,
+                reminderLeadMileage: 500,
+                enabled: true,
+            },
+        ];
+        const wrapper = mount(VehicleSummary, { global });
+        const text = wrapper.text();
+
+        expect(text).toContain("Oil change");
+        expect(text).toContain("Due soon");
+        expect(text.indexOf("Upcoming maintenance")).toBeLessThan(
+            text.indexOf("Service history"),
+        );
+    });
+
+    it("updates mileage through the fast flow and refreshes the summary", async () => {
+        const vehicleStore = useVehicleStore();
+        const updateMileage = vi
+            .spyOn(vehicleStore, "updateMileage")
+            .mockImplementation(async (_id, update) => {
+                vehicleStore.vehicles[0].currentMileage = update.mileage;
+                vehicleStore.vehicles[0].mileageUpdatedAt =
+                    "2026-09-03T12:00:00.000Z";
+            });
+        vi.spyOn(modalController, "create").mockResolvedValue({
+            present: vi.fn().mockResolvedValue(undefined),
+            onWillDismiss: vi.fn().mockResolvedValue({
+                role: "confirm",
+                data: {
+                    mileage: 41_000,
+                    mileageReminderIntervalDays: 30,
+                    mileageRemindersEnabled: true,
+                },
+            }),
+        } as never);
+        vi.spyOn(toastController, "create").mockResolvedValue({
+            present: vi.fn().mockResolvedValue(undefined),
+        } as never);
+        const wrapper = mount(VehicleSummary, { global });
+
+        expect(wrapper.text()).toContain("Update your mileage");
+        await wrapper.get(".mileage-link").trigger("click");
+        await flushPromises();
+
+        expect(modalController.create).toHaveBeenCalledWith(
+            expect.objectContaining({ component: MileageUpdateModal }),
+        );
+        expect(updateMileage).toHaveBeenCalledWith(
+            "vehicle-1",
+            expect.objectContaining({ mileage: 41_000 }),
+        );
+        expect(wrapper.get(".mileage-link").text()).toBe("41,000 mi");
     });
 
     it("renders loading, failure, and empty history states", async () => {
@@ -124,6 +190,24 @@ describe("VehicleSummary", () => {
         store.error = null;
         await nextTick();
         expect(wrapper.text()).toContain("No service records yet");
+    });
+
+    it("renders schedule loading, error, and empty states", async () => {
+        const store = useMaintenanceScheduleStore();
+        store.loading = true;
+        const wrapper = mount(VehicleSummary, { global });
+
+        expect(wrapper.text()).toContain("Loading maintenance schedules");
+        store.loading = false;
+        store.error = "schedule read failed";
+        await nextTick();
+        expect(wrapper.text()).toContain(
+            "Could not load maintenance schedules. schedule read failed",
+        );
+
+        store.error = null;
+        await nextTick();
+        expect(wrapper.text()).toContain("No maintenance schedules");
     });
 
     it("saves a record and presents a success toast", async () => {

@@ -1,7 +1,14 @@
 <script setup lang="ts">
 import VehicleFormModal from "@/components/VehicleFormModal.vue";
+import {
+    compareMaintenanceUrgency,
+    getMaintenanceDueState,
+    scheduleName,
+} from "@/services/maintenanceScheduleService";
+import { getLocalDateString } from "@/services/serviceRecordValidation";
+import { useMaintenanceScheduleStore } from "@/store/maintenanceScheduleStore";
 import { useVehicleStore } from "@/store/vehicleStore";
-import type { Vehicle } from "@/types";
+import type { MaintenanceSchedule, Vehicle } from "@/types";
 import {
     IonContent,
     IonFab,
@@ -15,6 +22,7 @@ import {
     IonTitle,
     IonToolbar,
     modalController,
+    onIonViewWillEnter,
     toastController,
 } from "@ionic/vue";
 import {
@@ -28,7 +36,13 @@ import { v4 as uuidv4 } from "uuid";
 
 const router = useRouter();
 const vehicleStore = useVehicleStore();
+const scheduleStore = useMaintenanceScheduleStore();
 const saving = ref(false);
+const today = getLocalDateString();
+
+onIonViewWillEnter(() => {
+    void loadSchedules();
+});
 
 function messageFor(error: unknown): string {
     return error instanceof Error
@@ -57,6 +71,47 @@ function mileageLabel(vehicle: Vehicle): string | undefined {
     return vehicle.currentMileage === undefined
         ? undefined
         : `${vehicle.currentMileage.toLocaleString()} mi`;
+}
+
+async function loadSchedules(): Promise<void> {
+    try {
+        await scheduleStore.loadSchedules();
+    } catch {
+        // The garage renders a retry action below.
+    }
+}
+
+function nearestSchedule(vehicle: Vehicle): MaintenanceSchedule | undefined {
+    return scheduleStore.schedules
+        .filter(
+            (schedule) => schedule.vehicleId === vehicle.id && schedule.enabled,
+        )
+        .sort((first, second) =>
+            compareMaintenanceUrgency(
+                first,
+                second,
+                vehicle.currentMileage,
+                today,
+            ),
+        )[0];
+}
+
+function maintenanceLabel(vehicle: Vehicle): string | undefined {
+    const schedule = nearestSchedule(vehicle);
+    if (!schedule) {
+        return undefined;
+    }
+    const state = getMaintenanceDueState(
+        schedule,
+        vehicle.currentMileage,
+        today,
+    );
+    const stateLabel = {
+        UPCOMING: "Upcoming",
+        DUE_SOON: "Due soon",
+        OVERDUE: "Overdue",
+    }[state];
+    return `${stateLabel}: ${scheduleName(schedule)}`;
 }
 
 async function openVehicleModal(): Promise<void> {
@@ -105,6 +160,14 @@ async function openVehicleModal(): Promise<void> {
             </ion-header>
 
             <main class="garage-page">
+                <div
+                    v-if="scheduleStore.error"
+                    class="garage-error"
+                    role="alert"
+                >
+                    <span>Could not load maintenance summaries.</span>
+                    <button type="button" @click="loadSchedules">Retry</button>
+                </div>
                 <section
                     v-if="vehicleStore.vehicles.length === 0"
                     class="empty-state"
@@ -164,6 +227,12 @@ async function openVehicleModal(): Promise<void> {
                                 </span>
                                 <span v-else>Details not entered</span>
                             </p>
+                            <p
+                                v-if="maintenanceLabel(vehicle)"
+                                class="vehicle-maintenance"
+                            >
+                                {{ maintenanceLabel(vehicle) }}
+                            </p>
                         </ion-label>
                         <ion-icon
                             slot="end"
@@ -213,6 +282,31 @@ async function openVehicleModal(): Promise<void> {
     --inner-padding-end: 0.875rem;
     --min-height: 5.5rem;
     --padding-start: 1rem;
+}
+
+.garage-error {
+    display: flex;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-bottom: 1rem;
+    padding: 0.75rem 1rem;
+    border: 1px solid var(--cl-danger);
+    border-radius: var(--cl-card-radius);
+    background: var(--cl-danger-soft);
+    color: var(--cl-danger);
+}
+
+.garage-error button {
+    border: 0;
+    background: transparent;
+    color: inherit;
+    font: inherit;
+    font-weight: 700;
+}
+
+.vehicle-maintenance {
+    color: var(--cl-accent);
+    font-weight: 600;
 }
 
 .vehicle-icon,

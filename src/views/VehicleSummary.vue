@@ -1,19 +1,40 @@
 <script setup lang="ts">
 import ServiceRecordCard from "@/components/ServiceRecordCard.vue";
 import ServiceRecordFormModal from "@/components/ServiceRecordFormModal.vue";
+import MaintenanceScheduleFormModal from "@/components/MaintenanceScheduleFormModal.vue";
+import MileageUpdateModal from "@/components/MileageUpdateModal.vue";
 import VehicleFormModal from "@/components/VehicleFormModal.vue";
 import { useServiceRecordStore } from "@/store/serviceRecordStore";
+import { useMaintenanceScheduleStore } from "@/store/maintenanceScheduleStore";
 import { useVehicleStore } from "@/store/vehicleStore";
-import type { ServiceRecord, Vehicle } from "@/types";
+import type { MileageUpdate } from "@/store/vehicleStore";
+import {
+    compareMaintenanceUrgency,
+    getMaintenanceDueState,
+    scheduleName,
+} from "@/services/maintenanceScheduleService";
+import { isMileageUpdateDue } from "@/services/mileageReminderService";
+import {
+    formatLocalDate,
+    getLocalDateString,
+} from "@/services/serviceRecordValidation";
+import type {
+    MaintenanceDueState,
+    MaintenanceSchedule,
+    ServiceRecord,
+    Vehicle,
+} from "@/types";
 import {
     IonBackButton,
     IonButton,
     IonButtons,
+    IonChip,
     IonContent,
     IonFab,
     IonFabButton,
     IonHeader,
     IonIcon,
+    IonLabel,
     IonNote,
     IonPage,
     IonSpinner,
@@ -33,11 +54,34 @@ const route = useRoute();
 const router = useRouter();
 const vehicleStore = useVehicleStore();
 const recordStore = useServiceRecordStore();
+const scheduleStore = useMaintenanceScheduleStore();
 const saving = ref(false);
+const today = getLocalDateString();
 
 const vehicleId = route.params.id as string;
 const vehicle = computed(() =>
     vehicleStore.vehicles.find((candidate) => candidate.id === vehicleId),
+);
+const vehicleSchedules = computed(() =>
+    scheduleStore.schedules
+        .filter((schedule) => schedule.vehicleId === vehicleId)
+        .sort((first, second) => {
+            if (first.enabled !== second.enabled) {
+                return first.enabled ? -1 : 1;
+            }
+            return compareMaintenanceUrgency(
+                first,
+                second,
+                vehicle.value?.currentMileage,
+                today,
+            );
+        }),
+);
+const activeSchedules = computed(() =>
+    vehicleSchedules.value.filter((schedule) => schedule.enabled),
+);
+const mileageUpdateDue = computed(
+    () => vehicle.value !== undefined && isMileageUpdateDue(vehicle.value),
 );
 
 function messageFor(error: unknown): string {
@@ -71,7 +115,18 @@ async function fetchRecords(): Promise<void> {
     }
 }
 
-onIonViewWillEnter(fetchRecords);
+async function fetchSchedules(): Promise<void> {
+    if (!vehicleId) {
+        return;
+    }
+    try {
+        await scheduleStore.loadSchedules(vehicleId);
+    } catch {
+        // The store error renders below with a retry action.
+    }
+}
+
+onIonViewWillEnter(() => Promise.all([fetchRecords(), fetchSchedules()]));
 
 async function openVehicleEditModal(): Promise<void> {
     const currentVehicle = vehicle.value;
@@ -167,7 +222,7 @@ async function openVehicleActions(): Promise<void> {
     await actionSheet.present();
 }
 
-async function openRecordModal(): Promise<void> {
+async function openRecordModal(schedule?: MaintenanceSchedule): Promise<void> {
     if (!vehicle.value) {
         return;
     }
@@ -177,6 +232,8 @@ async function openRecordModal(): Promise<void> {
         componentProps: {
             vehicleId,
             currentMileage: vehicle.value.currentMileage,
+            schedules: activeSchedules.value,
+            schedule,
         },
     });
     await modal.present();
@@ -198,6 +255,178 @@ async function openRecordModal(): Promise<void> {
     } finally {
         saving.value = false;
     }
+}
+
+async function openScheduleModal(
+    schedule?: MaintenanceSchedule,
+): Promise<void> {
+    const modal = await modalController.create({
+        component: MaintenanceScheduleFormModal,
+        componentProps: { vehicleId, schedule },
+    });
+    await modal.present();
+    const { data, role } = await modal.onWillDismiss<MaintenanceSchedule>();
+    if (role !== "confirm" || !data) {
+        return;
+    }
+
+    saving.value = true;
+    try {
+        if (schedule) {
+            await scheduleStore.updateSchedule(data);
+        } else {
+            await scheduleStore.addSchedule(data);
+        }
+        await showToast(
+            schedule ? "Schedule updated." : "Schedule added.",
+            "primary",
+        );
+    } catch (error) {
+        await showToast(
+            `Could not save schedule. ${messageFor(error)}`,
+            "danger",
+        );
+    } finally {
+        saving.value = false;
+    }
+}
+
+async function setScheduleEnabled(
+    schedule: MaintenanceSchedule,
+    enabled: boolean,
+): Promise<void> {
+    saving.value = true;
+    try {
+        await scheduleStore.setScheduleEnabled(schedule, enabled);
+        await showToast(
+            enabled ? "Schedule enabled." : "Schedule disabled.",
+            "primary",
+        );
+    } catch (error) {
+        await showToast(
+            `Could not update schedule. ${messageFor(error)}`,
+            "danger",
+        );
+    } finally {
+        saving.value = false;
+    }
+}
+
+async function deleteSchedule(schedule: MaintenanceSchedule): Promise<void> {
+    saving.value = true;
+    try {
+        await scheduleStore.deleteSchedule(schedule.id);
+        await showToast(
+            "Schedule deleted. Service history was kept.",
+            "primary",
+        );
+    } catch (error) {
+        await showToast(
+            `Could not delete schedule. ${messageFor(error)}`,
+            "danger",
+        );
+    } finally {
+        saving.value = false;
+    }
+}
+
+async function confirmScheduleDelete(
+    schedule: MaintenanceSchedule,
+): Promise<void> {
+    const alert = await alertController.create({
+        header: "Delete schedule?",
+        message: "Completed service history will be kept.",
+        buttons: [
+            { text: "Cancel", role: "cancel" },
+            {
+                text: "Delete",
+                role: "destructive",
+                handler: () => void deleteSchedule(schedule),
+            },
+        ],
+    });
+    await alert.present();
+}
+
+async function openScheduleActions(
+    schedule: MaintenanceSchedule,
+): Promise<void> {
+    const actionSheet = await actionSheetController.create({
+        header: scheduleName(schedule),
+        buttons: [
+            {
+                text: schedule.enabled ? "Disable schedule" : "Enable schedule",
+                handler: () =>
+                    void setScheduleEnabled(schedule, !schedule.enabled),
+            },
+            {
+                text: "Delete schedule",
+                role: "destructive",
+                handler: () => void confirmScheduleDelete(schedule),
+            },
+            { text: "Cancel", role: "cancel" },
+        ],
+    });
+    await actionSheet.present();
+}
+
+async function openMileageModal(): Promise<void> {
+    const currentVehicle = vehicle.value;
+    if (!currentVehicle) {
+        return;
+    }
+    const modal = await modalController.create({
+        component: MileageUpdateModal,
+        componentProps: { vehicle: currentVehicle },
+    });
+    await modal.present();
+    const { data, role } = await modal.onWillDismiss<MileageUpdate>();
+    if (role !== "confirm" || !data) {
+        return;
+    }
+
+    saving.value = true;
+    try {
+        await vehicleStore.updateMileage(vehicleId, data);
+        await showToast("Mileage updated.", "primary");
+    } catch (error) {
+        await showToast(
+            `Could not update mileage. ${messageFor(error)}`,
+            "danger",
+        );
+    } finally {
+        saving.value = false;
+    }
+}
+
+function dueState(schedule: MaintenanceSchedule): MaintenanceDueState {
+    return getMaintenanceDueState(
+        schedule,
+        vehicle.value?.currentMileage,
+        today,
+    );
+}
+
+function dueStateLabel(schedule: MaintenanceSchedule): string {
+    if (!schedule.enabled) {
+        return "Disabled";
+    }
+    return {
+        UPCOMING: "Upcoming",
+        DUE_SOON: "Due soon",
+        OVERDUE: "Overdue",
+    }[dueState(schedule)];
+}
+
+function dueDetails(schedule: MaintenanceSchedule): string {
+    const details: string[] = [];
+    if (schedule.nextDueMileage !== undefined) {
+        details.push(`${schedule.nextDueMileage.toLocaleString()} mi`);
+    }
+    if (schedule.nextDueDate) {
+        details.push(formatLocalDate(schedule.nextDueDate));
+    }
+    return details.join(" · ");
 }
 
 function openRecord(record: ServiceRecord): void {
@@ -262,11 +491,18 @@ function openRecord(record: ServiceRecord): void {
                         <div>
                             <dt>Current mileage</dt>
                             <dd>
-                                {{
-                                    vehicle.currentMileage === undefined
-                                        ? "Not entered"
-                                        : `${vehicle.currentMileage.toLocaleString()} mi`
-                                }}
+                                <button
+                                    class="mileage-link"
+                                    type="button"
+                                    :disabled="saving"
+                                    @click="openMileageModal"
+                                >
+                                    {{
+                                        vehicle.currentMileage === undefined
+                                            ? "Add mileage"
+                                            : `${vehicle.currentMileage.toLocaleString()} mi`
+                                    }}
+                                </button>
                             </dd>
                         </div>
                         <div>
@@ -278,6 +514,137 @@ function openRecord(record: ServiceRecord): void {
                 <section v-else class="state-message" role="alert">
                     <h2>Vehicle not found</h2>
                     <p>Return to My Garage and choose a vehicle.</p>
+                </section>
+
+                <section
+                    v-if="vehicle && mileageUpdateDue"
+                    class="mileage-prompt"
+                    aria-labelledby="mileage-prompt-title"
+                >
+                    <div>
+                        <h2 id="mileage-prompt-title">Update your mileage</h2>
+                        <p>
+                            When parked, add the current odometer reading so
+                            mileage reminders stay accurate.
+                        </p>
+                    </div>
+                    <ion-button fill="outline" @click="openMileageModal">
+                        Update
+                    </ion-button>
+                </section>
+
+                <section
+                    v-if="vehicle"
+                    class="maintenance-section"
+                    aria-labelledby="maintenance-title"
+                >
+                    <header class="section-heading">
+                        <h2 id="maintenance-title">Upcoming maintenance</h2>
+                        <ion-button
+                            fill="clear"
+                            size="small"
+                            :disabled="saving"
+                            @click="openScheduleModal()"
+                        >
+                            Add schedule
+                        </ion-button>
+                    </header>
+
+                    <div
+                        v-if="scheduleStore.loading"
+                        class="state-message"
+                        aria-live="polite"
+                    >
+                        <ion-spinner name="crescent" />
+                        <p>Loading maintenance schedules…</p>
+                    </div>
+
+                    <div
+                        v-else-if="scheduleStore.error"
+                        class="state-message"
+                        role="alert"
+                    >
+                        <ion-note color="danger">
+                            Could not load maintenance schedules.
+                            {{ scheduleStore.error }}
+                        </ion-note>
+                        <ion-button fill="outline" @click="fetchSchedules">
+                            Retry
+                        </ion-button>
+                    </div>
+
+                    <div
+                        v-else-if="vehicleSchedules.length > 0"
+                        class="schedule-list"
+                    >
+                        <article
+                            v-for="schedule in vehicleSchedules"
+                            :key="schedule.id"
+                            class="schedule-card"
+                            :class="{
+                                'schedule-card--disabled': !schedule.enabled,
+                            }"
+                        >
+                            <div class="schedule-card__body">
+                                <div class="schedule-card__heading">
+                                    <h3>{{ scheduleName(schedule) }}</h3>
+                                    <ion-chip
+                                        :class="`due-state due-state--${
+                                            schedule.enabled
+                                                ? dueState(schedule)
+                                                      .toLowerCase()
+                                                      .replace('_', '-')
+                                                : 'disabled'
+                                        }`"
+                                    >
+                                        <ion-label>
+                                            {{ dueStateLabel(schedule) }}
+                                        </ion-label>
+                                    </ion-chip>
+                                </div>
+                                <p>{{ dueDetails(schedule) }}</p>
+                                <p
+                                    v-if="
+                                        schedule.nextDueMileage !== undefined &&
+                                        vehicle.currentMileage === undefined
+                                    "
+                                    class="schedule-card__note"
+                                >
+                                    Add mileage to calculate mileage status.
+                                </p>
+                            </div>
+                            <footer class="schedule-card__actions">
+                                <ion-button
+                                    v-if="schedule.enabled"
+                                    fill="clear"
+                                    size="small"
+                                    @click="openRecordModal(schedule)"
+                                >
+                                    Log service
+                                </ion-button>
+                                <ion-button
+                                    fill="clear"
+                                    size="small"
+                                    @click="openScheduleModal(schedule)"
+                                >
+                                    Edit
+                                </ion-button>
+                                <ion-button
+                                    fill="clear"
+                                    size="small"
+                                    :aria-label="`More actions for ${scheduleName(schedule)}`"
+                                    @click="openScheduleActions(schedule)"
+                                >
+                                    More
+                                </ion-button>
+                            </footer>
+                        </article>
+                    </div>
+
+                    <div v-else class="state-message empty-maintenance">
+                        <h3>No maintenance schedules</h3>
+                        <p>Add a mileage interval, a time interval, or both.</p>
+                    </div>
                 </section>
 
                 <section
@@ -396,6 +763,44 @@ function openRecord(record: ServiceRecord): void {
     text-align: end;
 }
 
+.mileage-link {
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: var(--cl-accent);
+    font: inherit;
+    font-weight: inherit;
+    cursor: pointer;
+}
+
+.mileage-prompt {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-top: 1rem;
+    padding: 1rem;
+    border: 1px solid var(--cl-accent);
+    border-radius: var(--cl-card-radius);
+    background: var(--cl-accent-soft);
+}
+
+.mileage-prompt h2,
+.mileage-prompt p {
+    margin: 0;
+}
+
+.mileage-prompt h2 {
+    font-size: 1rem;
+}
+
+.mileage-prompt p {
+    margin-top: 0.25rem;
+    color: var(--cl-text-muted);
+    font-size: 0.875rem;
+}
+
+.maintenance-section,
 .history-section {
     margin-top: 1.75rem;
 }
@@ -406,11 +811,94 @@ function openRecord(record: ServiceRecord): void {
     letter-spacing: -0.02em;
 }
 
+.section-heading {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-bottom: 0.75rem;
+}
+
+.section-heading h2 {
+    margin: 0;
+    font-size: 1.5rem;
+    letter-spacing: -0.02em;
+}
+
+.schedule-list {
+    display: grid;
+    gap: 0.75rem;
+}
+
+.schedule-card {
+    overflow: hidden;
+    border: 1px solid var(--cl-border);
+    border-radius: var(--cl-card-radius);
+    background: var(--cl-surface);
+    box-shadow: var(--cl-card-shadow);
+}
+
+.schedule-card--disabled {
+    opacity: 0.72;
+}
+
+.schedule-card__body {
+    padding: 1rem;
+}
+
+.schedule-card__heading {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+}
+
+.schedule-card h3,
+.schedule-card p {
+    margin: 0;
+}
+
+.schedule-card h3 {
+    font-size: 1.05rem;
+}
+
+.schedule-card p {
+    margin-top: 0.375rem;
+    color: var(--cl-text-muted);
+}
+
+.schedule-card .schedule-card__note {
+    font-size: 0.8125rem;
+}
+
+.due-state {
+    min-height: 1.75rem;
+    margin: 0;
+    font-size: 0.75rem;
+}
+
+.due-state--overdue {
+    --background: var(--cl-danger-soft);
+    --color: var(--cl-danger);
+}
+
+.due-state--due-soon {
+    --background: var(--ion-color-warning-tint);
+    --color: var(--ion-color-warning-shade);
+}
+
+.schedule-card__actions {
+    display: flex;
+    justify-content: flex-end;
+    border-top: 1px solid var(--cl-border);
+}
+
 .record-list {
     display: grid;
     gap: 0;
 }
 
+.empty-maintenance,
 .empty-history {
     border: 1px dashed var(--cl-border);
     border-radius: var(--cl-card-radius);
