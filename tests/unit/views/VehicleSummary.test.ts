@@ -128,6 +128,9 @@ describe("VehicleSummary", () => {
 
         expect(text).toContain("Oil change");
         expect(text).toContain("Due soon");
+        expect(wrapper.get(".due-state").classes()).toContain(
+            "due-state--due-soon",
+        );
         expect(text.indexOf("Upcoming maintenance")).toBeLessThan(
             text.indexOf("Service history"),
         );

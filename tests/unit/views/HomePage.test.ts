@@ -99,6 +99,25 @@ describe("HomePage", () => {
         expect(wrapper.get(".vehicle-meta").text()).toBe("45,000 mi");
     });
 
+    it("hides upcoming maintenance from the garage card", () => {
+        useMaintenanceScheduleStore().schedules[0].nextDueMileage = 45_501;
+
+        const wrapper = mount(HomePage, { global });
+
+        expect(wrapper.find(".vehicle-maintenance").exists()).toBe(false);
+        expect(wrapper.text()).not.toContain("Upcoming: Oil change");
+    });
+
+    it("shows overdue maintenance on the garage card", () => {
+        useMaintenanceScheduleStore().schedules[0].nextDueMileage = 45_000;
+
+        const wrapper = mount(HomePage, { global });
+
+        expect(wrapper.get(".vehicle-maintenance").text()).toBe(
+            "Overdue: Oil change",
+        );
+    });
+
     it("adds a vehicle from the garage action", async () => {
         const vehicleStore = useVehicleStore();
         const addVehicle = vi

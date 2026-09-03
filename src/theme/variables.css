@@ -12,6 +12,8 @@
     --cl-border: #d8d1dc;
     --cl-danger: #a54955;
     --cl-danger-soft: #f4dfe1;
+    --cl-warning: #725307;
+    --cl-warning-soft: #f5e6b8;
 
     --cl-service-oil: #735497;
     --cl-service-oil-soft: #ebe2f3;
@@ -89,6 +91,8 @@
         --cl-border: #3d3947;
         --cl-danger: #e0939d;
         --cl-danger-soft: #4a2d34;
+        --cl-warning: #f0cf78;
+        --cl-warning-soft: #493817;
 
         --cl-service-oil: #c1a4e2;
         --cl-service-oil-soft: #3c304b;

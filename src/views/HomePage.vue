@@ -81,10 +81,19 @@ async function loadSchedules(): Promise<void> {
     }
 }
 
-function nearestSchedule(vehicle: Vehicle): MaintenanceSchedule | undefined {
+function nearestActionableSchedule(
+    vehicle: Vehicle,
+): MaintenanceSchedule | undefined {
     return scheduleStore.schedules
         .filter(
-            (schedule) => schedule.vehicleId === vehicle.id && schedule.enabled,
+            (schedule) =>
+                schedule.vehicleId === vehicle.id &&
+                schedule.enabled &&
+                getMaintenanceDueState(
+                    schedule,
+                    vehicle.currentMileage,
+                    today,
+                ) !== "UPCOMING",
         )
         .sort((first, second) =>
             compareMaintenanceUrgency(
@@ -97,7 +106,7 @@ function nearestSchedule(vehicle: Vehicle): MaintenanceSchedule | undefined {
 }
 
 function maintenanceLabel(vehicle: Vehicle): string | undefined {
-    const schedule = nearestSchedule(vehicle);
+    const schedule = nearestActionableSchedule(vehicle);
     if (!schedule) {
         return undefined;
     }
@@ -106,11 +115,7 @@ function maintenanceLabel(vehicle: Vehicle): string | undefined {
         vehicle.currentMileage,
         today,
     );
-    const stateLabel = {
-        UPCOMING: "Upcoming",
-        DUE_SOON: "Due soon",
-        OVERDUE: "Overdue",
-    }[state];
+    const stateLabel = state === "OVERDUE" ? "Overdue" : "Due soon";
     return `${stateLabel}: ${scheduleName(schedule)}`;
 }
 

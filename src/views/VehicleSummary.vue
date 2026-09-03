@@ -876,6 +876,7 @@ function openRecord(record: ServiceRecord): void {
     min-height: 1.75rem;
     margin: 0;
     font-size: 0.75rem;
+    font-weight: 650;
 }
 
 .due-state--overdue {
@@ -884,8 +885,8 @@ function openRecord(record: ServiceRecord): void {
 }
 
 .due-state--due-soon {
-    --background: var(--ion-color-warning-tint);
-    --color: var(--ion-color-warning-shade);
+    --background: var(--cl-warning-soft);
+    --color: var(--cl-warning);
 }
 
 .schedule-card__actions {
