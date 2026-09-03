@@ -7,6 +7,7 @@ import { DATABASE_MIGRATIONS } from "@/services/databaseMigrations";
 import {
     createServiceRecord,
     deleteServiceRecord,
+    loadServiceRecord,
     loadServiceRecords,
     updateServiceRecord,
     type ServiceRecordDatabase,
@@ -157,6 +158,9 @@ describe("service record repository with the version 1 schema", () => {
             "REPAIR",
             "TIRE_REPLACEMENT",
         ]);
+        await expect(
+            loadServiceRecord("record-1", adapter(firstDatabase)),
+        ).resolves.toEqual(firstLoad[0]);
         const vehicle = firstDatabase
             .prepare(
                 "SELECT currentMileage, mileageUpdatedAt FROM vehicles WHERE id = ?;",
@@ -176,6 +180,9 @@ describe("service record repository with the version 1 schema", () => {
             adapter(secondDatabase),
         );
         expect(secondLoad).toEqual(firstLoad);
+        await expect(
+            loadServiceRecord("record-1", adapter(secondDatabase)),
+        ).resolves.toEqual(firstLoad[0]);
         secondDatabase.close();
     });
 
@@ -218,6 +225,62 @@ describe("service record repository with the version 1 schema", () => {
                 original.items.find((item) => item.serviceType === siblingType),
             );
         }
+        database.close();
+    });
+
+    it("replaces structured details when item categories change", async () => {
+        const database = openDatabase();
+        insertVehicle(database);
+        const original = mixedRecord();
+        await createServiceRecord(original, adapter(database));
+
+        const updated: ServiceRecord = {
+            ...original,
+            items: original.items.map((item) => {
+                if (item.serviceType === "OIL_CHANGE") {
+                    return {
+                        id: item.id,
+                        serviceRecordId: item.serviceRecordId,
+                        serviceType: "TIRE_ROTATION" as const,
+                        treadDepthRemaining: 8,
+                    };
+                }
+                if (item.serviceType === "TIRE_REPLACEMENT") {
+                    return {
+                        id: item.id,
+                        serviceRecordId: item.serviceRecordId,
+                        serviceType: "BRAKE_SERVICE" as const,
+                    };
+                }
+                return item;
+            }),
+        };
+
+        await updateServiceRecord(updated, adapter(database));
+
+        expect(countRows(database, "oil_change_details")).toBe(0);
+        const tireDetails = database
+            .prepare(
+                `SELECT serviceItemId, treadDepthRemaining
+                 FROM tire_service_details;`,
+            )
+            .all();
+        expect(tireDetails).toEqual([
+            {
+                serviceItemId: "record-1-oil",
+                treadDepthRemaining: 8,
+            },
+        ]);
+        const saved = await loadServiceRecord("record-1", adapter(database));
+        expect(saved?.items.find((item) => item.id === "record-1-oil")).toEqual(
+            expect.objectContaining({
+                serviceType: "TIRE_ROTATION",
+                treadDepthRemaining: 8,
+            }),
+        );
+        expect(
+            saved?.items.find((item) => item.id === "record-1-tire"),
+        ).toEqual(expect.objectContaining({ serviceType: "BRAKE_SERVICE" }));
         database.close();
     });
 

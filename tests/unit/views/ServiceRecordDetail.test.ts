@@ -1,15 +1,18 @@
 import { flushPromises, mount } from "@vue/test-utils";
 import { createPinia, setActivePinia } from "pinia";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { nextTick } from "vue";
 import {
     actionSheetController,
     alertController,
     modalController,
+    onIonViewWillEnter,
     toastController,
 } from "@ionic/vue";
 import ServiceRecordDetail from "@/views/ServiceRecordDetail.vue";
 import {
     deleteServiceRecord,
+    loadServiceRecords,
     updateServiceRecord,
 } from "@/services/serviceRecordRepository";
 import { useServiceRecordStore } from "@/store/serviceRecordStore";
@@ -126,6 +129,30 @@ describe("ServiceRecordDetail", () => {
         expect(wrapper.text()).toContain("Oil filter");
         expect(wrapper.text()).toContain("Not replaced");
         expect(wrapper.text()).toContain("Replaced cracked belt.");
+    });
+
+    it("shows loading, failure, and missing-record states", async () => {
+        const store = useServiceRecordStore();
+        store.records = [];
+        store.loading = true;
+        const wrapper = mount(ServiceRecordDetail, { global });
+
+        expect(wrapper.text()).toContain("Loading service record");
+
+        store.loading = false;
+        store.error = "database locked";
+        await nextTick();
+        expect(wrapper.text()).toContain(
+            "Could not load service record. database locked",
+        );
+
+        store.error = null;
+        vi.mocked(loadServiceRecords).mockResolvedValue([]);
+        const enterView = vi.mocked(onIonViewWillEnter).mock.calls[0][0];
+        await enterView();
+        await nextTick();
+
+        expect(wrapper.text()).toContain("Service record not found");
     });
 
     it("edits the record from the detail toolbar", async () => {
