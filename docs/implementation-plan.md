@@ -1,6 +1,6 @@
 # CarLog implementation plan
 
-Status: Phase 1 completed and verified on August 31, 2026. Phase 2 completed, verified, and merged on September 3, 2026. Automated pull request validation is next.
+Status: Phase 1 completed and was verified on August 31, 2026. Phase 2 completed, was verified, and merged on September 3, 2026. Automated pull request validation merged and was verified on September 3, 2026. Phase 3 is next.
 
 ## Objective
 
@@ -435,7 +435,7 @@ Completion record:
 
 ### CI milestone: automate pull request validation
 
-Complete this milestone on `chore/ci-validation` before starting Phase 3.
+Completed on `chore/ci-validation` and merged through pull request #3 before Phase 3.
 
 - Add a GitHub Actions workflow for pull requests targeting `main` and pushes to `main`.
 - Use Node 24, the npm cache, and `npm ci` from the committed lockfile.
@@ -452,6 +452,13 @@ Exit criteria:
 - The workflow passes on the current `main` branch and reports a failing command as a failed check.
 - GitHub prevents merging into `main` until the required CI check passes.
 - The documented local commands match the commands used by CI.
+
+Completion record:
+
+- `.github/workflows/ci.yml` runs the `validate` job for pull requests targeting `main` and pushes to `main`. It uses Node 24, the npm cache, `npm ci`, `npm run check`, headless Cypress against a ready Vite server, and `npm run build:mobile`.
+- The workflow has read-only repository permissions, does not use repository secrets, cancels superseded branch runs, and pins each third-party action to an immutable commit SHA. Cypress logs and screenshots upload only when the end-to-end step fails.
+- Pull request run `33776234419` and post-merge `main` run `33795569480` passed. The `validate` check is required for `main` through the active `Protect main` repository ruleset.
+- `README.md` documents the CI commands, their local equivalents, the manual native-test boundary, and branch-protection setup.
 
 ### Phase 3: implement schedules and in-app reminders
 
@@ -554,11 +561,10 @@ Exit criteria:
 
 ## Known current gaps
 
-- Pull requests do not yet run automated CI validation.
 - Maintenance schedules, due-state behavior, reminders, and notifications remain for Phases 3 and 4.
 - End-to-end coverage checks browser database startup and the garage empty state, but the main service-record user journey remains for release hardening.
 - The native application ID still uses the Ionic starter value.
 
 ## Next implementation step
 
-Implement the CI milestone on `chore/ci-validation` from the latest `main`. Merge it before creating `feat/phase-3-maintenance-schedules`. Do not begin Phase 3 work on the CI branch.
+Implement Phase 3 on `feat/phase-3-maintenance-schedules`, created from the latest `main`. Merge it before starting Phase 4. Do not add local-notification work to the Phase 3 branch.
