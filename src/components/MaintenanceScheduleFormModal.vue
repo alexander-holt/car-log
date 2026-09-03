@@ -11,7 +11,6 @@ import {
     IonSelect,
     IonSelectOption,
     IonTitle,
-    IonToggle,
     IonToolbar,
     modalController,
 } from "@ionic/vue";
@@ -42,7 +41,6 @@ const formData = reactive({
     nextDueDate: props.schedule?.nextDueDate ?? "",
     reminderLeadMileage: props.schedule?.reminderLeadMileage ?? null,
     reminderLeadDays: props.schedule?.reminderLeadDays ?? null,
-    enabled: props.schedule?.enabled ?? true,
 });
 const showValidationErrors = ref(false);
 const isEditMode = computed(() => props.schedule !== undefined);
@@ -54,22 +52,42 @@ function optionalNumber(value: string | number | null): number | undefined {
 }
 
 function buildSchedule(): MaintenanceSchedule {
+    const nextDueMileage = optionalNumber(formData.nextDueMileage);
+    const nextDueDate = formData.nextDueDate || undefined;
+
     return normalizeMaintenanceSchedule({
         id: props.schedule?.id ?? uuidv4(),
         vehicleId: props.vehicleId,
         serviceType: formData.serviceType,
         label: formData.label,
-        intervalMileage: optionalNumber(formData.intervalMileage),
-        intervalMonths: optionalNumber(formData.intervalMonths),
-        nextDueMileage: optionalNumber(formData.nextDueMileage),
-        nextDueDate: formData.nextDueDate || undefined,
-        reminderLeadMileage: optionalNumber(formData.reminderLeadMileage),
-        reminderLeadDays: optionalNumber(formData.reminderLeadDays),
+        intervalMileage:
+            nextDueMileage === undefined
+                ? undefined
+                : optionalNumber(formData.intervalMileage),
+        intervalMonths:
+            nextDueDate === undefined
+                ? undefined
+                : optionalNumber(formData.intervalMonths),
+        nextDueMileage,
+        nextDueDate,
+        reminderLeadMileage:
+            nextDueMileage === undefined
+                ? undefined
+                : optionalNumber(formData.reminderLeadMileage),
+        reminderLeadDays:
+            nextDueDate === undefined
+                ? undefined
+                : optionalNumber(formData.reminderLeadDays),
         notificationId: props.schedule?.notificationId,
-        enabled: formData.enabled,
+        enabled: props.schedule?.enabled ?? true,
         lastCompletedServiceItemId: props.schedule?.lastCompletedServiceItemId,
     });
 }
+
+const hasMileageDue = computed(
+    () => optionalNumber(formData.nextDueMileage) !== undefined,
+);
+const hasDateDue = computed(() => formData.nextDueDate.trim().length > 0);
 
 const validationIssues = computed(() =>
     validateMaintenanceSchedule(buildSchedule()),
@@ -164,42 +182,17 @@ function saveSchedule(): void {
                     >
                         {{ errorFor("label") }}
                     </ion-note>
-                    <ion-item v-if="isEditMode" lines="none">
-                        <ion-toggle
-                            v-model="formData.enabled"
-                            justify="space-between"
-                        >
-                            Schedule enabled
-                        </ion-toggle>
-                    </ion-item>
                 </ion-list>
             </section>
 
-            <section aria-labelledby="mileage-interval-title">
-                <h2 id="mileage-interval-title">Mileage interval</h2>
+            <section aria-labelledby="next-due-title">
+                <h2 id="next-due-title">Next due</h2>
+                <p class="section-description">
+                    Choose mileage, a date, or both. CarLog will use the repeat
+                    interval to calculate what comes next after you log the
+                    service.
+                </p>
                 <ion-list class="form-group" lines="full">
-                    <ion-item>
-                        <ion-input
-                            v-model="formData.intervalMileage"
-                            data-field-path="intervalMileage"
-                            label="Every"
-                            label-placement="stacked"
-                            placeholder="e.g. 5000"
-                            type="number"
-                            inputmode="numeric"
-                            min="1"
-                            step="1"
-                        >
-                            <span slot="end">mi</span>
-                        </ion-input>
-                    </ion-item>
-                    <ion-note
-                        v-if="errorFor('intervalMileage')"
-                        class="field-error"
-                        color="danger"
-                    >
-                        {{ errorFor("intervalMileage") }}
-                    </ion-note>
                     <ion-item>
                         <ion-input
                             v-model="formData.nextDueMileage"
@@ -220,55 +213,27 @@ function saveSchedule(): void {
                     >
                         {{ errorFor("nextDueMileage") }}
                     </ion-note>
-                    <ion-item>
+                    <ion-item v-if="hasMileageDue">
                         <ion-input
-                            v-model="formData.reminderLeadMileage"
-                            data-field-path="reminderLeadMileage"
-                            label="Due-soon lead"
+                            v-model="formData.intervalMileage"
+                            data-field-path="intervalMileage"
+                            label="Repeat every"
                             label-placement="stacked"
-                            placeholder="e.g. 500"
-                            type="number"
-                            inputmode="numeric"
-                            min="0"
-                            step="1"
-                        >
-                            <span slot="end">mi</span>
-                        </ion-input>
-                    </ion-item>
-                    <ion-note
-                        v-if="errorFor('reminderLeadMileage')"
-                        class="field-error"
-                        color="danger"
-                    >
-                        {{ errorFor("reminderLeadMileage") }}
-                    </ion-note>
-                </ion-list>
-            </section>
-
-            <section aria-labelledby="time-interval-title">
-                <h2 id="time-interval-title">Time interval</h2>
-                <ion-list class="form-group" lines="full">
-                    <ion-item>
-                        <ion-input
-                            v-model="formData.intervalMonths"
-                            data-field-path="intervalMonths"
-                            label="Every"
-                            label-placement="stacked"
-                            placeholder="e.g. 6"
+                            placeholder="e.g. 5000"
                             type="number"
                             inputmode="numeric"
                             min="1"
                             step="1"
                         >
-                            <span slot="end">months</span>
+                            <span slot="end">mi after service</span>
                         </ion-input>
                     </ion-item>
                     <ion-note
-                        v-if="errorFor('intervalMonths')"
+                        v-if="errorFor('intervalMileage')"
                         class="field-error"
                         color="danger"
                     >
-                        {{ errorFor("intervalMonths") }}
+                        {{ errorFor("intervalMileage") }}
                     </ion-note>
                     <ion-item>
                         <ion-input
@@ -286,38 +251,103 @@ function saveSchedule(): void {
                     >
                         {{ errorFor("nextDueDate") }}
                     </ion-note>
-                    <ion-item>
+                    <ion-item v-if="hasDateDue">
                         <ion-input
-                            v-model="formData.reminderLeadDays"
-                            data-field-path="reminderLeadDays"
-                            label="Due-soon lead"
+                            v-model="formData.intervalMonths"
+                            data-field-path="intervalMonths"
+                            label="Repeat every"
                             label-placement="stacked"
-                            placeholder="e.g. 14"
+                            placeholder="e.g. 6"
                             type="number"
                             inputmode="numeric"
-                            min="0"
+                            min="1"
                             step="1"
                         >
-                            <span slot="end">days</span>
+                            <span slot="end">months after service</span>
                         </ion-input>
                     </ion-item>
                     <ion-note
-                        v-if="errorFor('reminderLeadDays')"
+                        v-if="errorFor('intervalMonths')"
                         class="field-error"
                         color="danger"
                     >
-                        {{ errorFor("reminderLeadDays") }}
+                        {{ errorFor("intervalMonths") }}
                     </ion-note>
                 </ion-list>
             </section>
 
             <ion-note
-                v-if="errorFor('interval')"
+                v-if="errorFor('nextDue')"
                 class="interval-error"
                 color="danger"
             >
-                {{ errorFor("interval") }}
+                {{ errorFor("nextDue") }}
             </ion-note>
+
+            <details class="warning-settings">
+                <summary>Due soon warning</summary>
+                <div class="warning-settings__body">
+                    <p class="section-description">
+                        Leave these blank to use the CarLog defaults of 500
+                        miles and 14 days. Enter 0 to wait until the exact due
+                        mileage or date.
+                    </p>
+                    <ion-list
+                        v-if="hasMileageDue || hasDateDue"
+                        class="form-group"
+                        lines="full"
+                    >
+                        <ion-item v-if="hasMileageDue">
+                            <ion-input
+                                v-model="formData.reminderLeadMileage"
+                                data-field-path="reminderLeadMileage"
+                                label="Mileage warning"
+                                label-placement="stacked"
+                                placeholder="Default: 500"
+                                type="number"
+                                inputmode="numeric"
+                                min="0"
+                                step="1"
+                            >
+                                <span slot="end">mi before</span>
+                            </ion-input>
+                        </ion-item>
+                        <ion-note
+                            v-if="errorFor('reminderLeadMileage')"
+                            class="field-error"
+                            color="danger"
+                        >
+                            {{ errorFor("reminderLeadMileage") }}
+                        </ion-note>
+                        <ion-item v-if="hasDateDue">
+                            <ion-input
+                                v-model="formData.reminderLeadDays"
+                                data-field-path="reminderLeadDays"
+                                label="Date warning"
+                                label-placement="stacked"
+                                placeholder="Default: 14"
+                                type="number"
+                                inputmode="numeric"
+                                min="0"
+                                step="1"
+                            >
+                                <span slot="end">days before</span>
+                            </ion-input>
+                        </ion-item>
+                        <ion-note
+                            v-if="errorFor('reminderLeadDays')"
+                            class="field-error"
+                            color="danger"
+                        >
+                            {{ errorFor("reminderLeadDays") }}
+                        </ion-note>
+                    </ion-list>
+                    <ion-note v-else>
+                        Add a next due mileage or date before changing its
+                        warning.
+                    </ion-note>
+                </div>
+            </details>
         </form>
     </ion-content>
 </template>
@@ -336,6 +366,13 @@ function saveSchedule(): void {
 .schedule-form h2 {
     margin: 0 0 0.625rem;
     font-size: 1.125rem;
+}
+
+.section-description {
+    margin: 0 0 0.75rem;
+    color: var(--cl-text-muted);
+    font-size: 0.875rem;
+    line-height: 1.4;
 }
 
 .form-group {
@@ -370,5 +407,29 @@ function saveSchedule(): void {
     margin-top: 1rem;
     border-radius: var(--cl-card-radius);
     background: var(--cl-danger-soft);
+}
+
+.warning-settings {
+    overflow: hidden;
+    margin-top: 1.5rem;
+    border: 1px solid var(--cl-border);
+    border-radius: var(--cl-card-radius);
+    background: var(--cl-surface);
+}
+
+.warning-settings summary {
+    padding: 1rem;
+    color: var(--cl-text);
+    font-size: 1rem;
+    font-weight: 650;
+    cursor: pointer;
+}
+
+.warning-settings__body {
+    padding: 0 1rem 1rem;
+}
+
+.warning-settings__body .form-group {
+    border-radius: 0.75rem;
 }
 </style>

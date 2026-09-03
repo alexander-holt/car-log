@@ -17,9 +17,8 @@ describe("Phase 3 maintenance schedules", () => {
         cy.contains("h2", "Upcoming maintenance").should("be.visible");
         cy.contains("ion-button", "Add schedule").click();
 
-        setIonInput('[data-field-path="intervalMileage"]', "5000");
         setIonInput('[data-field-path="nextDueMileage"]', "50000");
-        setIonInput('[data-field-path="reminderLeadMileage"]', "500");
+        setIonInput('[data-field-path="intervalMileage"]', "5000");
         cy.get("ion-modal").contains("ion-button", "Save").click();
 
         cy.contains(".schedule-card", "Oil change").within(() => {
@@ -30,6 +29,14 @@ describe("Phase 3 maintenance schedules", () => {
         setIonInput('[data-field-path="nextDueMileage"]', "51000");
         cy.get("ion-modal").contains("ion-button", "Save").click();
         cy.contains(".schedule-card", "51,000 mi").should("exist");
+
+        cy.visit("/home");
+        cy.contains(".vehicle-name", vehicleModel)
+            .closest("ion-item")
+            .within(() => {
+                cy.get(".vehicle-maintenance").should("not.exist");
+            });
+        cy.contains(".vehicle-name", vehicleModel).closest("ion-item").click();
 
         cy.contains(".schedule-card", "Oil change")
             .contains("ion-button", "More")

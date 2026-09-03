@@ -12,6 +12,9 @@ import {
 
 const MILLISECONDS_PER_DAY = 86_400_000;
 
+export const DEFAULT_MAINTENANCE_LEAD_MILEAGE = 500;
+export const DEFAULT_MAINTENANCE_LEAD_DAYS = 14;
+
 const STATE_RANK: Record<MaintenanceDueState, number> = {
     UPCOMING: 0,
     DUE_SOON: 1,
@@ -44,7 +47,8 @@ function mileageState(
         return "OVERDUE";
     }
 
-    const lead = schedule.reminderLeadMileage ?? 0;
+    const lead =
+        schedule.reminderLeadMileage ?? DEFAULT_MAINTENANCE_LEAD_MILEAGE;
     return currentMileage >= schedule.nextDueMileage - lead
         ? "DUE_SOON"
         : "UPCOMING";
@@ -64,7 +68,8 @@ function dateState(
         return "OVERDUE";
     }
 
-    return remainingDays <= (schedule.reminderLeadDays ?? 0)
+    return remainingDays <=
+        (schedule.reminderLeadDays ?? DEFAULT_MAINTENANCE_LEAD_DAYS)
         ? "DUE_SOON"
         : "UPCOMING";
 }
@@ -224,12 +229,12 @@ export function validateMaintenanceSchedule(
         });
     }
     if (
-        schedule.intervalMileage === undefined &&
-        schedule.intervalMonths === undefined
+        schedule.nextDueMileage === undefined &&
+        schedule.nextDueDate === undefined
     ) {
         issues.push({
-            path: "interval",
-            message: "Enter a mileage interval, a time interval, or both.",
+            path: "nextDue",
+            message: "Enter a next due mileage, a next due date, or both.",
         });
     }
     if (
@@ -248,6 +253,42 @@ export function validateMaintenanceSchedule(
         issues.push({
             path: "nextDueDate",
             message: "Enter the next due date for this interval.",
+        });
+    }
+    if (
+        schedule.nextDueMileage !== undefined &&
+        schedule.intervalMileage === undefined
+    ) {
+        issues.push({
+            path: "intervalMileage",
+            message: "Enter how often this service repeats by mileage.",
+        });
+    }
+    if (
+        schedule.nextDueDate !== undefined &&
+        schedule.intervalMonths === undefined
+    ) {
+        issues.push({
+            path: "intervalMonths",
+            message: "Enter how often this service repeats by month.",
+        });
+    }
+    if (
+        schedule.reminderLeadMileage !== undefined &&
+        schedule.nextDueMileage === undefined
+    ) {
+        issues.push({
+            path: "reminderLeadMileage",
+            message: "A mileage warning requires a next due mileage.",
+        });
+    }
+    if (
+        schedule.reminderLeadDays !== undefined &&
+        schedule.nextDueDate === undefined
+    ) {
+        issues.push({
+            path: "reminderLeadDays",
+            message: "A date warning requires a next due date.",
         });
     }
     if (

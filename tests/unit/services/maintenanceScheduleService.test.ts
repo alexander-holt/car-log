@@ -40,6 +40,31 @@ describe("maintenance due states", () => {
         ).toBe("OVERDUE");
     });
 
+    it("uses the default mileage and date warning windows", () => {
+        const mileageSchedule = schedule({ reminderLeadMileage: undefined });
+        expect(
+            getMaintenanceDueState(mileageSchedule, 49_499, "2026-09-03"),
+        ).toBe("UPCOMING");
+        expect(
+            getMaintenanceDueState(mileageSchedule, 49_500, "2026-09-03"),
+        ).toBe("DUE_SOON");
+
+        const dateSchedule = schedule({
+            intervalMileage: undefined,
+            nextDueMileage: undefined,
+            reminderLeadMileage: undefined,
+            intervalMonths: 6,
+            nextDueDate: "2026-10-03",
+            reminderLeadDays: undefined,
+        });
+        expect(getMaintenanceDueState(dateSchedule, 0, "2026-09-18")).toBe(
+            "UPCOMING",
+        );
+        expect(getMaintenanceDueState(dateSchedule, 0, "2026-09-19")).toBe(
+            "DUE_SOON",
+        );
+    });
+
     it("uses exact local-calendar date boundaries", () => {
         const dateSchedule = schedule({
             intervalMileage: undefined,
@@ -123,15 +148,79 @@ describe("maintenance schedule advancement", () => {
 });
 
 describe("maintenance schedule validation", () => {
-    it("requires an interval and its matching next-due value", () => {
+    it("requires at least one next-due value", () => {
+        const issues = validateMaintenanceSchedule(
+            schedule({ intervalMileage: undefined, nextDueMileage: undefined }),
+        );
+
+        expect(issues).toContainEqual({
+            path: "nextDue",
+            message: "Enter a next due mileage, a next due date, or both.",
+        });
+    });
+
+    it("requires mileage due values and intervals as a pair", () => {
+        expect(
+            validateMaintenanceSchedule(
+                schedule({ intervalMileage: undefined }),
+            ),
+        ).toContainEqual({
+            path: "intervalMileage",
+            message: "Enter how often this service repeats by mileage.",
+        });
+        expect(
+            validateMaintenanceSchedule(
+                schedule({ nextDueMileage: undefined }),
+            ),
+        ).toContainEqual({
+            path: "nextDueMileage",
+            message: "Enter the next due mileage for this interval.",
+        });
+    });
+
+    it("requires date due values and intervals as a pair", () => {
+        expect(
+            validateMaintenanceSchedule(
+                schedule({
+                    intervalMileage: undefined,
+                    nextDueMileage: undefined,
+                    intervalMonths: undefined,
+                    nextDueDate: "2027-03-03",
+                }),
+            ),
+        ).toContainEqual({
+            path: "intervalMonths",
+            message: "Enter how often this service repeats by month.",
+        });
+        expect(
+            validateMaintenanceSchedule(
+                schedule({
+                    intervalMileage: undefined,
+                    nextDueMileage: undefined,
+                    intervalMonths: 6,
+                }),
+            ),
+        ).toContainEqual({
+            path: "nextDueDate",
+            message: "Enter the next due date for this interval.",
+        });
+    });
+
+    it("rejects warning overrides without matching due values", () => {
         const issues = validateMaintenanceSchedule(
             schedule({
                 intervalMileage: undefined,
                 nextDueMileage: undefined,
+                reminderLeadMileage: 1_000,
+                intervalMonths: 6,
+                nextDueDate: "2027-03-03",
             }),
         );
 
-        expect(issues.map((issue) => issue.path)).toContain("interval");
+        expect(issues).toContainEqual({
+            path: "reminderLeadMileage",
+            message: "A mileage warning requires a next due mileage.",
+        });
     });
 
     it("requires a valid label for Other maintenance", () => {

@@ -16,7 +16,6 @@ const global = {
         IonNote: passthrough,
         IonSelect: passthrough,
         IonSelectOption: passthrough,
-        IonToggle: passthrough,
         IonButton: {
             emits: ["click"],
             template: "<button @click=\"$emit('click')\"><slot /></button>",
@@ -33,7 +32,7 @@ const global = {
 describe("MaintenanceScheduleFormModal", () => {
     afterEach(() => vi.restoreAllMocks());
 
-    it("shows an error until a mileage or time interval is complete", async () => {
+    it("requires a next due value and its matching repeat interval", async () => {
         const dismiss = vi
             .spyOn(modalController, "dismiss")
             .mockResolvedValue(true);
@@ -49,7 +48,21 @@ describe("MaintenanceScheduleFormModal", () => {
 
         expect(wrapper.text()).toContain("Schedule not saved.");
         expect(wrapper.text()).toContain(
-            "Enter a mileage interval, a time interval, or both.",
+            "Enter a next due mileage, a next due date, or both.",
+        );
+        expect(dismiss).not.toHaveBeenCalled();
+
+        await wrapper
+            .get('input[aria-label="Next due mileage"]')
+            .setValue(50_000);
+        await flushPromises();
+        await wrapper
+            .findAll("button")
+            .find((button) => button.text() === "Save")
+            ?.trigger("click");
+
+        expect(wrapper.text()).toContain(
+            "Enter how often this service repeats by mileage.",
         );
         expect(dismiss).not.toHaveBeenCalled();
     });
@@ -63,10 +76,11 @@ describe("MaintenanceScheduleFormModal", () => {
             global,
         });
 
-        await wrapper.get('input[aria-label="Every"]').setValue(5_000);
         await wrapper
             .get('input[aria-label="Next due mileage"]')
             .setValue(50_000);
+        await flushPromises();
+        await wrapper.get('input[aria-label="Repeat every"]').setValue(5_000);
         await wrapper
             .findAll("button")
             .find((button) => button.text() === "Save")
@@ -80,7 +94,41 @@ describe("MaintenanceScheduleFormModal", () => {
                 serviceType: "OIL_CHANGE",
                 intervalMileage: 5_000,
                 nextDueMileage: 50_000,
+                reminderLeadMileage: undefined,
                 enabled: true,
+            }),
+            "confirm",
+        );
+    });
+
+    it("keeps warning defaults out of per-schedule overrides", async () => {
+        const dismiss = vi
+            .spyOn(modalController, "dismiss")
+            .mockResolvedValue(true);
+        const wrapper = mount(MaintenanceScheduleFormModal, {
+            props: { vehicleId: "vehicle-1" },
+            global,
+        });
+
+        expect(wrapper.text()).toContain("Due soon warning");
+        expect(wrapper.text()).toContain(
+            "CarLog defaults of 500 miles and 14 days",
+        );
+        await wrapper
+            .get('input[aria-label="Next due date"]')
+            .setValue("2027-03-03");
+        await flushPromises();
+        await wrapper.get('input[aria-label="Repeat every"]').setValue(6);
+        await wrapper
+            .findAll("button")
+            .find((button) => button.text() === "Save")
+            ?.trigger("click");
+
+        expect(dismiss).toHaveBeenCalledWith(
+            expect.objectContaining({
+                intervalMonths: 6,
+                nextDueDate: "2027-03-03",
+                reminderLeadDays: undefined,
             }),
             "confirm",
         );
@@ -110,6 +158,7 @@ describe("MaintenanceScheduleFormModal", () => {
         });
 
         expect(wrapper.text()).toContain("Edit schedule");
+        expect(wrapper.text()).not.toContain("Schedule enabled");
         await wrapper
             .findAll("button")
             .find((button) => button.text() === "Save")
