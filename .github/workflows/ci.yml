@@ -1,0 +1,89 @@
+name: CI
+
+on:
+    pull_request:
+        branches:
+            - main
+    push:
+        branches:
+            - main
+
+permissions:
+    contents: read
+
+concurrency:
+    group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+    cancel-in-progress: true
+
+jobs:
+    validate:
+        name: validate
+        runs-on: ubuntu-latest
+
+        steps:
+            - name: Check out repository
+              uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+              with:
+                  persist-credentials: false
+
+            - name: Set up Node.js
+              uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+              with:
+                  node-version-file: .nvmrc
+                  cache: npm
+                  cache-dependency-path: package-lock.json
+
+            - name: Install dependencies
+              run: npm ci
+
+            - name: Run project checks
+              run: npm run check
+
+            - name: Run end-to-end tests
+              id: e2e
+              shell: bash
+              run: |
+                  set -o pipefail
+                  : > cypress.log
+
+                  npm run dev -- --host 127.0.0.1 > vite.log 2>&1 &
+                  vite_pid=$!
+                  trap 'kill "$vite_pid" 2>/dev/null || true' EXIT
+
+                  server_ready=false
+                  for attempt in {1..60}; do
+                      if curl --fail --silent http://127.0.0.1:5173/ > /dev/null; then
+                          server_ready=true
+                          break
+                      fi
+
+                      if ! kill -0 "$vite_pid" 2>/dev/null; then
+                          echo "Vite exited before becoming ready."
+                          cat vite.log
+                          exit 1
+                      fi
+
+                      sleep 1
+                  done
+
+                  if [[ "$server_ready" != "true" ]]; then
+                      echo "Vite was not ready within 60 seconds."
+                      cat vite.log
+                      exit 1
+                  fi
+
+                  npm run test:e2e 2>&1 | tee cypress.log
+
+            - name: Upload Cypress failure artifacts
+              if: failure() && steps.e2e.outcome == 'failure'
+              uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+              with:
+                  name: cypress-failure-${{ github.run_id }}
+                  path: |
+                      cypress.log
+                      tests/e2e/screenshots
+                  if-no-files-found: ignore
+                  retention-days: 7
+
+            - name: Sync mobile projects
+              run: npm run build:mobile

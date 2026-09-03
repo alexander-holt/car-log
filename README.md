@@ -12,9 +12,9 @@ CarLog exists to solve that problem: your one-stop centralized digital garage fo
 
 ## Project status
 
-Phase 1, development and persistence stabilization, is complete. Phase 2 will add the service record and history flows described in the [implementation plan](docs/implementation-plan.md).
+Phases 1 and 2 are complete. CarLog has local persistence plus the service record and history flows described in the [implementation plan](docs/implementation-plan.md).
 
-Current functionality includes vehicle management, a versioned SQLite schema, browser and native persistence, visible startup errors, and automated schema coverage.
+Current functionality includes vehicle management, multi-item service records, service history editing and deletion, a versioned SQLite schema, browser and native persistence, visible startup errors, and automated schema coverage.
 
 ## Architecture
 
@@ -131,17 +131,47 @@ npm run check
 
 This command runs ESLint, Prettier verification, unit tests, SQLite integration tests, type checking, and the production web build.
 
-Run the browser database startup test while `npm run dev` is running:
+Run all Cypress tests against the Vite development server. Start Vite in one terminal:
 
 ```sh
-npm run test:e2e -- --spec tests/e2e/specs/databaseStartup.cy.ts
+npm run dev -- --host 127.0.0.1
 ```
 
-When dependencies, Capacitor configuration, or native integration changes, build the web application and sync both native projects:
+After Vite is ready at `http://127.0.0.1:5173`, use another terminal:
+
+```sh
+npm run test:e2e
+```
+
+Build the web application and sync both native projects with:
 
 ```sh
 npm run build:mobile
 ```
+
+GitHub Actions runs the same validation for pull requests targeting `main` and pushes to `main`. The `CI / validate` check uses a clean checkout and runs:
+
+```sh
+npm ci
+npm run check
+npm run dev -- --host 127.0.0.1
+npm run test:e2e
+npm run build:mobile
+```
+
+The workflow waits for Vite before it starts Cypress. If Cypress fails, the workflow uploads its console log and any screenshots. It does not receive repository secrets and has read-only repository access. Superseded runs for the same pull request or branch are canceled.
+
+Xcode builds, Gradle builds, simulator tests, and physical-device tests remain manual. Run the native development command for the affected platform before merging changes that depend on native behavior.
+
+### Branch protection
+
+After `CI / validate` has run at least once, protect `main` in the GitHub repository settings:
+
+1. Open **Settings**, then **Branches** or **Rules**, and create or edit the rule that targets `main`.
+2. Enable **Require status checks to pass before merging**.
+3. Add `CI / validate` as a required check and save the rule.
+
+With this rule active, GitHub blocks a pull request from merging until the latest commit passes the CI job.
 
 Useful focused commands include:
 

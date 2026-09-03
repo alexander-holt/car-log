@@ -1,6 +1,6 @@
 # CarLog implementation plan
 
-Status: Phase 1 completed and verified on August 31, 2026. Phase 2 completed and verified on September 3, 2026, pending review and merge.
+Status: Phase 1 completed and verified on August 31, 2026. Phase 2 completed, verified, and merged on September 3, 2026. Automated pull request validation is next.
 
 ## Objective
 
@@ -433,6 +433,26 @@ Completion record:
 - `npm run check` and both Cypress end-to-end specs passed. `npm run dev:ios` built and deployed the app to the iOS Simulator, where an existing vehicle, two records, five items, and their structured details remained after relaunch.
 - `npm run dev:android` built and deployed the app to an Android 35 Pixel emulator on macOS. A vehicle and service record remained after a native force-stop and relaunch.
 
+### CI milestone: automate pull request validation
+
+Complete this milestone on `chore/ci-validation` before starting Phase 3.
+
+- Add a GitHub Actions workflow for pull requests targeting `main` and pushes to `main`.
+- Use Node 24, the npm cache, and `npm ci` from the committed lockfile.
+- Run `npm run check` so linting, formatting, unit tests, SQLite integration tests, type checking, and the production build fail the workflow when broken.
+- Start the Vite development server, wait for it to become ready, and run `npm run test:e2e` in headless mode.
+- Run `npm run build:mobile` to catch Capacitor configuration, plugin, and native-project sync failures. Keep Xcode, Gradle, simulator, and physical-device smoke tests manual for now.
+- Give the workflow read-only repository permissions, avoid secrets for pull request validation, pin third-party actions to immutable commit SHAs, and cancel superseded runs on the same branch.
+- Upload Cypress screenshots and logs only when the end-to-end job fails.
+- Document the CI commands and required GitHub branch-protection check in `README.md`.
+
+Exit criteria:
+
+- A pull request targeting `main` runs the full automated validation workflow from a clean checkout.
+- The workflow passes on the current `main` branch and reports a failing command as a failed check.
+- GitHub prevents merging into `main` until the required CI check passes.
+- The documented local commands match the commands used by CI.
+
 ### Phase 3: implement schedules and in-app reminders
 
 - Add schedule types, persistence, store, and forms.
@@ -470,7 +490,7 @@ Exit criteria:
 
 ### Phase 5: harden the mobile release
 
-- Replace the placeholder Cypress test with the main user journey.
+- Expand Cypress coverage to the main service-record user journey.
 - Add fixed-date tests for timezone and due-state boundaries.
 - Test fresh install and migration behavior.
 - Test database rollback for partial service-record failures.
@@ -534,10 +554,11 @@ Exit criteria:
 
 ## Known current gaps
 
+- Pull requests do not yet run automated CI validation.
 - Maintenance schedules, due-state behavior, reminders, and notifications remain for Phases 3 and 4.
 - End-to-end coverage checks browser database startup and the garage empty state, but the main service-record user journey remains for release hardening.
 - The native application ID still uses the Ionic starter value.
 
 ## Next implementation step
 
-Review and merge the Phase 2 service-record branch without mixing in Phase 3 work. After Phase 2 reaches `main`, create `feat/phase-3-maintenance-schedules` from the latest `main` and implement only the Phase 3 schedule and in-app reminder scope.
+Implement the CI milestone on `chore/ci-validation` from the latest `main`. Merge it before creating `feat/phase-3-maintenance-schedules`. Do not begin Phase 3 work on the CI branch.
