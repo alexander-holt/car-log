@@ -115,6 +115,17 @@ export const useServiceRecordStore = defineStore("serviceRecords", () => {
         }
     }
 
+    function clearScheduleReferences(scheduleId: string): void {
+        records.value = records.value.map((record) => ({
+            ...record,
+            items: record.items.map((item) =>
+                item.scheduleId === scheduleId
+                    ? { ...item, scheduleId: undefined }
+                    : item,
+            ),
+        }));
+    }
+
     function clearError(): void {
         error.value = null;
     }
@@ -127,6 +138,7 @@ export const useServiceRecordStore = defineStore("serviceRecords", () => {
         addRecord,
         updateRecord,
         deleteRecord,
+        clearScheduleReferences,
         clearError,
     };
 });

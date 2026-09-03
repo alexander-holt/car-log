@@ -163,4 +163,30 @@ describe("service record store", () => {
         await store.deleteRecord("record-1");
         expect(store.records).toEqual([]);
     });
+
+    it("clears deleted schedule links without removing service history", () => {
+        const store = useServiceRecordStore();
+        store.records = [
+            makeRecord({
+                items: [
+                    {
+                        id: "item-1",
+                        serviceRecordId: "record-1",
+                        serviceType: "INSPECTION",
+                        scheduleId: "schedule-1",
+                    },
+                ],
+            }),
+        ];
+
+        store.clearScheduleReferences("schedule-1");
+
+        expect(store.records).toHaveLength(1);
+        expect(store.records[0].items).toEqual([
+            expect.objectContaining({
+                id: "item-1",
+                scheduleId: undefined,
+            }),
+        ]);
+    });
 });

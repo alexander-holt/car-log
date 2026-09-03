@@ -316,6 +316,7 @@ async function deleteSchedule(schedule: MaintenanceSchedule): Promise<void> {
     saving.value = true;
     try {
         await scheduleStore.deleteSchedule(schedule.id);
+        recordStore.clearScheduleReferences(schedule.id);
         await showToast(
             "Schedule deleted. Service history was kept.",
             "primary",
