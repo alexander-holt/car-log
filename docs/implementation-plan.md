@@ -1,6 +1,6 @@
 # CarLog implementation plan
 
-Status: Phase 1 completed and verified on August 31, 2026. Phase 2 has not started.
+Status: Phase 1 completed and verified on August 31, 2026. Phase 2 completed and verified on September 3, 2026, pending review and merge.
 
 ## Objective
 
@@ -403,26 +403,35 @@ Completion record:
 
 ### Phase 2: implement service records and history
 
-- Replace the current maintenance record types with `ServiceRecord` and `ServiceItem` models.
-- Implement service record, item, and detail-table queries.
-- Use database transaction methods for multi-table writes.
-- Build the multi-item service record form.
-- Support DIY and shop provider choices without requiring a shop name.
-- Update record cards to show category chips.
-- Add record detail, edit, and delete flows.
-- Update vehicle mileage after saving a newer record.
-- Add validation for mileage, dates, costs, VIN, and structured detail fields.
-- Add loading indicators, empty states, error messages, and Ionic toasts.
-- Remove debug logs and commented duplicate implementations.
+- [x] Replace the current maintenance record types with `ServiceRecord` and `ServiceItem` models.
+- [x] Implement service record, item, and detail-table queries.
+- [x] Use database transaction methods for multi-table writes.
+- [x] Build the multi-item service record form.
+- [x] Support DIY and shop provider choices without requiring a shop name.
+- [x] Update record cards to show category chips.
+- [x] Add record detail, edit, and delete flows.
+- [x] Update vehicle mileage after saving a newer record.
+- [x] Add validation for mileage, dates, costs, VIN, and structured detail fields.
+- [x] Add loading indicators, empty states, error messages, and Ionic toasts.
+- [x] Remove debug logs and commented duplicate implementations.
 
 Exit criteria:
 
-- One service record can contain oil, tire, inspection, repair, or Other items.
-- A mixed service record displays as one history card with several chips.
-- Editing one item does not corrupt its siblings.
-- Deleting a record removes its items and details.
-- DIY work never requires a shop name.
-- Data survives native application restarts.
+- [x] One service record can contain oil, tire, inspection, repair, or Other items.
+- [x] A mixed service record displays as one history card with several chips.
+- [x] Editing one item does not corrupt its siblings.
+- [x] Deleting a record removes its items and details.
+- [x] DIY work never requires a shop name.
+- [x] Data survives native application restarts.
+
+Completion record:
+
+- `ServiceRecord` and `ServiceItem` replace the legacy maintenance-record types. Repository queries load records with their items and structured oil and tire details.
+- Create, update, and delete operations use SQLite transactions. Integration tests cover rollback, sibling preservation, structured-detail replacement, cascading deletion, mileage updates, and database reopen behavior.
+- The service form supports mixed multi-item records, DIY and shop providers, validation feedback, focused error scrolling, and Ionic toasts. History cards group a record into one card with category chips and open a separate detail, edit, and confirmed-delete flow.
+- The Phase 1 version 1 schema remains unchanged. No destructive database reset or replacement migration was added.
+- `npm run check` and both Cypress end-to-end specs passed. `npm run dev:ios` built and deployed the app to the iOS Simulator, where an existing vehicle, two records, five items, and their structured details remained after relaunch.
+- `npm run dev:android` built and deployed the app to an Android 35 Pixel emulator on macOS. A vehicle and service record remained after a native force-stop and relaunch.
 
 ### Phase 3: implement schedules and in-app reminders
 
@@ -525,13 +534,10 @@ Exit criteria:
 
 ## Known current gaps
 
-- The existing model supports only one maintenance type per record.
-- Record edit and delete operations are not exposed by the current UI.
-- The current next-service fields are stored on historical records and have no due-state behavior.
-- Vehicle mileage is not updated from service history.
-- End-to-end coverage checks browser database startup, but the main service-record user journey remains for a later phase.
+- Maintenance schedules, due-state behavior, reminders, and notifications remain for Phases 3 and 4.
+- End-to-end coverage checks browser database startup and the garage empty state, but the main service-record user journey remains for release hardening.
 - The native application ID still uses the Ionic starter value.
 
 ## Next implementation step
 
-Review and merge the Phase 1 persistence branch without mixing in Phase 2 work. After Phase 1 reaches `main`, create `feat/phase-2-service-records` from the latest `main` and implement only the Phase 2 service record and history scope.
+Review and merge the Phase 2 service-record branch without mixing in Phase 3 work. After Phase 2 reaches `main`, create `feat/phase-3-maintenance-schedules` from the latest `main` and implement only the Phase 3 schedule and in-app reminder scope.

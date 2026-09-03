@@ -1,2 +1,238 @@
-/* For information on how to create your own theme, please refer to:
-http://ionicframework.com/docs/theming/ */
+:root {
+    color-scheme: light dark;
+
+    --cl-canvas: #f2eff4;
+    --cl-surface: #fcfafc;
+    --cl-surface-muted: #e9e4ed;
+    --cl-text: #2c2933;
+    --cl-text-muted: #716b78;
+    --cl-accent: #725e9d;
+    --cl-accent-contrast: #ffffff;
+    --cl-accent-soft: #e8e0f1;
+    --cl-border: #d8d1dc;
+    --cl-danger: #a54955;
+    --cl-danger-soft: #f4dfe1;
+
+    --cl-service-oil: #735497;
+    --cl-service-oil-soft: #ebe2f3;
+    --cl-service-tire: #486f9c;
+    --cl-service-tire-soft: #e0eaf4;
+    --cl-service-inspection: #507d62;
+    --cl-service-inspection-soft: #dfece3;
+    --cl-service-repair: #a05f53;
+    --cl-service-repair-soft: #f2e0dc;
+    --cl-service-battery: #886a31;
+    --cl-service-battery-soft: #f1e8d3;
+    --cl-service-other: #666371;
+    --cl-service-other-soft: #e7e4ea;
+
+    --cl-card-radius: 1rem;
+    --cl-card-shadow: none;
+    --cl-page-gutter: 1rem;
+    --cl-form-row-min-height: 3.5rem;
+    --cl-form-padding-inline: 1rem;
+    --cl-form-control-padding-block: 0.4375rem;
+    --cl-form-label-size: 0.8125rem;
+    --cl-form-value-size: 1rem;
+    --cl-form-section-gap: 1.5rem;
+    --cl-license-plate-font-family:
+        ui-monospace, "SFMono-Regular", "SF Mono", Menlo, Consolas, monospace;
+    --cl-license-plate-letter-spacing: 0.06em;
+
+    --ion-background-color: var(--cl-canvas);
+    --ion-background-color-rgb: 242, 239, 244;
+    --ion-text-color: var(--cl-text);
+    --ion-text-color-rgb: 44, 41, 51;
+    --ion-card-background: var(--cl-surface);
+    --ion-item-background: var(--cl-surface);
+    --ion-toolbar-background: rgb(252 250 252 / 92%);
+    --ion-color-primary: var(--cl-accent);
+    --ion-color-primary-rgb: 114, 94, 157;
+    --ion-color-primary-contrast: var(--cl-accent-contrast);
+    --ion-color-primary-contrast-rgb: 255, 255, 255;
+    --ion-color-primary-shade: #64538a;
+    --ion-color-primary-tint: #806ea7;
+    --ion-color-danger: var(--cl-danger);
+    --ion-color-danger-rgb: 165, 73, 85;
+    --ion-color-danger-contrast: #ffffff;
+    --ion-color-danger-contrast-rgb: 255, 255, 255;
+    --ion-color-danger-shade: #91404b;
+    --ion-color-danger-tint: #ae5b66;
+    --ion-color-medium: var(--cl-text-muted);
+    --ion-color-step-50: #eeebf0;
+    --ion-color-step-100: #e7e3e9;
+    --ion-color-step-150: var(--cl-border);
+}
+
+.ios {
+    --cl-card-radius: 1rem;
+    --cl-card-shadow: 0 0.5rem 1.5rem rgb(44 41 51 / 6%);
+}
+
+.md {
+    --cl-card-radius: 0.75rem;
+    --cl-card-shadow: 0 0.125rem 0.375rem rgb(44 41 51 / 10%);
+}
+
+@media (prefers-color-scheme: dark) {
+    :root,
+    :root.ios,
+    :root.md {
+        --cl-canvas: #191820;
+        --cl-surface: #24222d;
+        --cl-surface-muted: #2f2c39;
+        --cl-text: #eae6ef;
+        --cl-text-muted: #aaa3b2;
+        --cl-accent: #b6a3dd;
+        --cl-accent-contrast: #211d2a;
+        --cl-accent-soft: #3b334b;
+        --cl-border: #3d3947;
+        --cl-danger: #e0939d;
+        --cl-danger-soft: #4a2d34;
+
+        --cl-service-oil: #c1a4e2;
+        --cl-service-oil-soft: #3c304b;
+        --cl-service-tire: #98b9dc;
+        --cl-service-tire-soft: #293b50;
+        --cl-service-inspection: #96c5a5;
+        --cl-service-inspection-soft: #293f32;
+        --cl-service-repair: #dfa397;
+        --cl-service-repair-soft: #4a302f;
+        --cl-service-battery: #d9ba75;
+        --cl-service-battery-soft: #463b27;
+        --cl-service-other: #b9b3c0;
+        --cl-service-other-soft: #37343e;
+
+        --ion-background-color: var(--cl-canvas);
+        --ion-background-color-rgb: 25, 24, 32;
+        --ion-text-color: var(--cl-text);
+        --ion-text-color-rgb: 234, 230, 239;
+        --ion-card-background: var(--cl-surface);
+        --ion-item-background: var(--cl-surface);
+        --ion-toolbar-background: rgb(36 34 45 / 92%);
+        --ion-color-primary: var(--cl-accent);
+        --ion-color-primary-rgb: 182, 163, 221;
+        --ion-color-primary-contrast: var(--cl-accent-contrast);
+        --ion-color-primary-contrast-rgb: 33, 29, 42;
+        --ion-color-primary-shade: #a08fc2;
+        --ion-color-primary-tint: #bdace1;
+        --ion-color-danger: var(--cl-danger);
+        --ion-color-danger-rgb: 224, 147, 157;
+        --ion-color-danger-contrast: #271b1d;
+        --ion-color-danger-contrast-rgb: 39, 27, 29;
+        --ion-color-danger-shade: #c5818a;
+        --ion-color-danger-tint: #e39ea7;
+        --ion-color-medium: var(--cl-text-muted);
+        --ion-color-step-50: #211f29;
+        --ion-color-step-100: #2c2934;
+        --ion-color-step-150: var(--cl-border);
+    }
+
+    .ios {
+        --cl-card-shadow: 0 0.5rem 1.5rem rgb(0 0 0 / 18%);
+    }
+
+    .md {
+        --cl-card-shadow: 0 0.125rem 0.375rem rgb(0 0 0 / 24%);
+    }
+}
+
+body {
+    background: var(--cl-canvas);
+    color: var(--cl-text);
+}
+
+ion-content {
+    --background: var(--cl-canvas);
+}
+
+ion-toolbar {
+    --background: var(--ion-toolbar-background);
+    --border-color: var(--cl-border);
+    color: var(--cl-text);
+}
+
+.cl-form .form-group ion-item,
+.cl-form .service-item-panel ion-item {
+    --inner-padding-end: var(--cl-form-padding-inline);
+    --min-height: var(--cl-form-row-min-height);
+    --padding-start: var(--cl-form-padding-inline);
+}
+
+.cl-form ion-input,
+.cl-form ion-select,
+.cl-form ion-textarea {
+    --color: var(--cl-text);
+    --padding-bottom: var(--cl-form-control-padding-block);
+    --padding-top: var(--cl-form-control-padding-block);
+    font-size: var(--cl-form-value-size);
+}
+
+.cl-form .field-affix {
+    color: var(--cl-text-muted);
+    font-size: 0.875rem;
+}
+
+.cl-form .field-error {
+    padding-inline: var(--cl-form-padding-inline);
+}
+
+.cl-form .form-section + .form-section {
+    margin-top: var(--cl-form-section-gap);
+}
+
+.cl-form .license-plate-input {
+    --ion-font-family: var(--cl-license-plate-font-family);
+    font-weight: 400;
+    letter-spacing: var(--cl-license-plate-letter-spacing);
+    text-transform: uppercase;
+}
+
+.cl-form .license-plate-label {
+    color: var(--cl-text-muted);
+    font-family: var(--ion-default-font);
+    font-size: var(--cl-form-label-size);
+    font-weight: 400;
+    letter-spacing: normal;
+    text-transform: none;
+}
+
+ion-header[collapse="condense"] ion-toolbar {
+    --background: var(--cl-canvas);
+}
+
+ion-fab-button {
+    --background: var(--cl-accent);
+    --background-activated: var(--ion-color-primary-shade);
+    --color: var(--cl-accent-contrast);
+}
+
+.service-tone--oil {
+    --cl-service-tone: var(--cl-service-oil);
+    --cl-service-tone-soft: var(--cl-service-oil-soft);
+}
+
+.service-tone--tire {
+    --cl-service-tone: var(--cl-service-tire);
+    --cl-service-tone-soft: var(--cl-service-tire-soft);
+}
+
+.service-tone--inspection {
+    --cl-service-tone: var(--cl-service-inspection);
+    --cl-service-tone-soft: var(--cl-service-inspection-soft);
+}
+
+.service-tone--repair {
+    --cl-service-tone: var(--cl-service-repair);
+    --cl-service-tone-soft: var(--cl-service-repair-soft);
+}
+
+.service-tone--battery {
+    --cl-service-tone: var(--cl-service-battery);
+    --cl-service-tone-soft: var(--cl-service-battery-soft);
+}
+
+.service-tone--other {
+    --cl-service-tone: var(--cl-service-other);
+    --cl-service-tone-soft: var(--cl-service-other-soft);
+}

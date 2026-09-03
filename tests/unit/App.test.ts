@@ -33,7 +33,7 @@ describe("App startup state", () => {
     it("shows the router when startup succeeds", () => {
         const wrapper = mount(App, { global });
 
-        expect(wrapper.get('[data-testid="router-outlet"]').exists()).toBe(
+        expect(wrapper.find('[data-testid="router-outlet"]').exists()).toBe(
             true,
         );
         expect(wrapper.find('[role="alert"]').exists()).toBe(false);

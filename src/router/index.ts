@@ -17,6 +17,11 @@ const routes: Array<RouteRecordRaw> = [
         name: "VehicleSummary",
         component: () => import("@/views/VehicleSummary.vue"),
     },
+    {
+        path: "/vehicle/:vehicleId/service-record/:recordId",
+        name: "ServiceRecordDetail",
+        component: () => import("@/views/ServiceRecordDetail.vue"),
+    },
 ];
 
 const router = createRouter({

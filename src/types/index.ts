@@ -7,40 +7,68 @@ export interface Vehicle {
     licensePlate?: string;
     engineType?: string;
     currentMileage?: number;
+    mileageUpdatedAt?: string;
+    mileageReminderIntervalDays?: number;
+    mileageRemindersEnabled?: boolean;
 }
 
-export interface BaseRecord {
+export const SERVICE_TYPES = [
+    "OIL_CHANGE",
+    "TIRE_ROTATION",
+    "TIRE_REPLACEMENT",
+    "BRAKE_SERVICE",
+    "BATTERY_SERVICE",
+    "INSPECTION",
+    "REPAIR",
+    "OTHER",
+] as const;
+
+export type ServiceType = (typeof SERVICE_TYPES)[number];
+export type ProviderType = "DIY" | "SHOP";
+
+interface BaseServiceItem {
+    id: string;
+    serviceRecordId: string;
+    serviceType: ServiceType;
+    title?: string;
+    notes?: string;
+    scheduleId?: string;
+}
+
+export interface OilChangeServiceItem extends BaseServiceItem {
+    serviceType: "OIL_CHANGE";
+    oilType?: string;
+    filterReplaced: boolean;
+}
+
+export interface TireServiceItem extends BaseServiceItem {
+    serviceType: "TIRE_ROTATION" | "TIRE_REPLACEMENT";
+    treadDepthRemaining?: number;
+}
+
+export interface OtherServiceItem extends BaseServiceItem {
+    serviceType: "OTHER";
+    title: string;
+}
+
+export interface StandardServiceItem extends BaseServiceItem {
+    serviceType: "BRAKE_SERVICE" | "BATTERY_SERVICE" | "INSPECTION" | "REPAIR";
+}
+
+export type ServiceItem =
+    | OilChangeServiceItem
+    | TireServiceItem
+    | OtherServiceItem
+    | StandardServiceItem;
+
+export interface ServiceRecord {
     id: string;
     vehicleId: string;
     date: string;
     mileage: number;
-    cost?: number;
-    shopName?: string;
+    providerType: ProviderType;
+    providerName?: string;
+    totalCostCents?: number;
     notes?: string;
+    items: ServiceItem[];
 }
-
-export interface RepairRecord extends BaseRecord {
-    type: "REPAIR";
-    partReplaced: string;
-}
-
-export interface PreventativeRecord extends BaseRecord {
-    nextServiceMileage?: number;
-    nextServiceDate?: string;
-}
-
-export interface OilChangeRecord extends PreventativeRecord {
-    type: "OIL_CHANGE";
-    filterReplaced: boolean;
-    oilType?: string;
-}
-
-export interface TireRotationRecord extends PreventativeRecord {
-    type: "TIRE_ROTATION";
-    treadDepthRemaining?: number;
-}
-
-export type MaintenanceRecord =
-    | RepairRecord
-    | OilChangeRecord
-    | TireRotationRecord;
