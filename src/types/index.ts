@@ -26,6 +26,24 @@ export const SERVICE_TYPES = [
 export type ServiceType = (typeof SERVICE_TYPES)[number];
 export type ProviderType = "DIY" | "SHOP";
 
+export interface MaintenanceSchedule {
+    id: string;
+    vehicleId: string;
+    serviceType: ServiceType;
+    label?: string;
+    intervalMileage?: number;
+    intervalMonths?: number;
+    nextDueMileage?: number;
+    nextDueDate?: string;
+    reminderLeadMileage?: number;
+    reminderLeadDays?: number;
+    notificationId?: number;
+    enabled: boolean;
+    lastCompletedServiceItemId?: string;
+}
+
+export type MaintenanceDueState = "UPCOMING" | "DUE_SOON" | "OVERDUE";
+
 interface BaseServiceItem {
     id: string;
     serviceRecordId: string;

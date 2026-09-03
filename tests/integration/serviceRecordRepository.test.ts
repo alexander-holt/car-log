@@ -13,6 +13,7 @@ import {
     type ServiceRecordDatabase,
 } from "@/services/serviceRecordRepository";
 import type { ServiceRecord } from "@/types";
+import type { MaintenanceSchedule } from "@/types";
 
 class NodeDatabaseAdapter {
     constructor(private readonly database: DatabaseSync) {}
@@ -132,6 +133,33 @@ function countRows(database: DatabaseSync, table: string): number {
             count: number;
         }
     ).count;
+}
+
+function insertSchedule(
+    database: DatabaseSync,
+    schedule: MaintenanceSchedule,
+): void {
+    database
+        .prepare(
+            `INSERT INTO maintenance_schedules (
+                id, vehicleId, serviceType, label, intervalMileage,
+                intervalMonths, nextDueMileage, nextDueDate,
+                reminderLeadMileage, reminderLeadDays, enabled
+             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`,
+        )
+        .run(
+            schedule.id,
+            schedule.vehicleId,
+            schedule.serviceType,
+            schedule.label ?? null,
+            schedule.intervalMileage ?? null,
+            schedule.intervalMonths ?? null,
+            schedule.nextDueMileage ?? null,
+            schedule.nextDueDate ?? null,
+            schedule.reminderLeadMileage ?? null,
+            schedule.reminderLeadDays ?? null,
+            schedule.enabled ? 1 : 0,
+        );
 }
 
 describe("service record repository with the version 1 schema", () => {
@@ -346,6 +374,183 @@ describe("service record repository with the version 1 schema", () => {
             currentMileage: 50_000,
             mileageUpdatedAt: null,
         });
+        database.close();
+    });
+
+    it("completes and advances several schedules with one mixed record", async () => {
+        const database = openDatabase();
+        insertVehicle(database);
+        insertSchedule(database, {
+            id: "schedule-oil",
+            vehicleId: "vehicle-1",
+            serviceType: "OIL_CHANGE",
+            intervalMileage: 5_000,
+            intervalMonths: 6,
+            nextDueMileage: 45_000,
+            nextDueDate: "2026-08-31",
+            enabled: true,
+        });
+        insertSchedule(database, {
+            id: "schedule-tires",
+            vehicleId: "vehicle-1",
+            serviceType: "TIRE_REPLACEMENT",
+            intervalMileage: 40_000,
+            nextDueMileage: 45_000,
+            enabled: true,
+        });
+        const record = mixedRecord({
+            items: mixedRecord().items.map((item) => {
+                if (item.serviceType === "OIL_CHANGE") {
+                    return { ...item, scheduleId: "schedule-oil" };
+                }
+                if (item.serviceType === "TIRE_REPLACEMENT") {
+                    return { ...item, scheduleId: "schedule-tires" };
+                }
+                return item;
+            }),
+        });
+
+        const result = await createServiceRecord(record, adapter(database));
+
+        expect(result.advancedSchedules).toEqual([
+            expect.objectContaining({
+                id: "schedule-oil",
+                nextDueMileage: 55_000,
+                nextDueDate: "2027-02-28",
+                lastCompletedServiceItemId: "record-1-oil",
+            }),
+            expect.objectContaining({
+                id: "schedule-tires",
+                nextDueMileage: 90_000,
+                lastCompletedServiceItemId: "record-1-tire",
+            }),
+        ]);
+        const savedSchedules = database
+            .prepare(
+                `SELECT id, nextDueMileage, nextDueDate, lastCompletedServiceItemId
+                 FROM maintenance_schedules ORDER BY id;`,
+            )
+            .all();
+        expect(savedSchedules).toEqual([
+            {
+                id: "schedule-oil",
+                nextDueMileage: 55_000,
+                nextDueDate: "2027-02-28",
+                lastCompletedServiceItemId: "record-1-oil",
+            },
+            {
+                id: "schedule-tires",
+                nextDueMileage: 90_000,
+                nextDueDate: null,
+                lastCompletedServiceItemId: "record-1-tire",
+            },
+        ]);
+        database.close();
+    });
+
+    it("rolls back the record, items, mileage, and all schedules when one schedule update fails", async () => {
+        const database = openDatabase();
+        insertVehicle(database);
+        insertSchedule(database, {
+            id: "schedule-oil",
+            vehicleId: "vehicle-1",
+            serviceType: "OIL_CHANGE",
+            intervalMileage: 5_000,
+            nextDueMileage: 45_000,
+            enabled: true,
+        });
+        insertSchedule(database, {
+            id: "schedule-tires",
+            vehicleId: "vehicle-1",
+            serviceType: "TIRE_REPLACEMENT",
+            intervalMileage: 40_000,
+            nextDueMileage: 45_000,
+            enabled: true,
+        });
+        database.exec(`
+            CREATE TRIGGER reject_tire_schedule_update
+            BEFORE UPDATE ON maintenance_schedules
+            WHEN OLD.id = 'schedule-tires'
+            BEGIN
+                SELECT RAISE(ABORT, 'forced schedule failure');
+            END;
+        `);
+        const record = mixedRecord({
+            items: mixedRecord().items.map((item) => {
+                if (item.serviceType === "OIL_CHANGE") {
+                    return { ...item, scheduleId: "schedule-oil" };
+                }
+                if (item.serviceType === "TIRE_REPLACEMENT") {
+                    return { ...item, scheduleId: "schedule-tires" };
+                }
+                return item;
+            }),
+        });
+
+        await expect(
+            createServiceRecord(record, adapter(database)),
+        ).rejects.toThrow("forced schedule failure");
+
+        expect(countRows(database, "service_records")).toBe(0);
+        expect(countRows(database, "service_items")).toBe(0);
+        expect(
+            database
+                .prepare(
+                    `SELECT id, nextDueMileage, lastCompletedServiceItemId
+                     FROM maintenance_schedules ORDER BY id;`,
+                )
+                .all(),
+        ).toEqual([
+            {
+                id: "schedule-oil",
+                nextDueMileage: 45_000,
+                lastCompletedServiceItemId: null,
+            },
+            {
+                id: "schedule-tires",
+                nextDueMileage: 45_000,
+                lastCompletedServiceItemId: null,
+            },
+        ]);
+        expect(
+            database
+                .prepare("SELECT currentMileage FROM vehicles WHERE id = ?;")
+                .get("vehicle-1"),
+        ).toEqual({ currentMileage: 40_000 });
+        database.close();
+    });
+
+    it("preserves service history and clears item links when a schedule is deleted", async () => {
+        const database = openDatabase();
+        insertVehicle(database);
+        insertSchedule(database, {
+            id: "schedule-oil",
+            vehicleId: "vehicle-1",
+            serviceType: "OIL_CHANGE",
+            intervalMileage: 5_000,
+            nextDueMileage: 45_000,
+            enabled: true,
+        });
+        const record = mixedRecord({
+            items: mixedRecord().items.map((item) =>
+                item.serviceType === "OIL_CHANGE"
+                    ? { ...item, scheduleId: "schedule-oil" }
+                    : item,
+            ),
+        });
+        await createServiceRecord(record, adapter(database));
+
+        database
+            .prepare("DELETE FROM maintenance_schedules WHERE id = ?;")
+            .run("schedule-oil");
+
+        expect(countRows(database, "service_records")).toBe(1);
+        expect(countRows(database, "service_items")).toBe(5);
+        expect(
+            database
+                .prepare("SELECT scheduleId FROM service_items WHERE id = ?;")
+                .get("record-1-oil"),
+        ).toEqual({ scheduleId: null });
         database.close();
     });
 });
