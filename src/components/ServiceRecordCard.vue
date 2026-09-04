@@ -230,6 +230,7 @@ function recordAriaLabel(): string {
     overflow: hidden;
     font-size: 0.9375rem;
     line-height: 1.4;
+    line-clamp: 2;
     -webkit-box-orient: vertical;
     -webkit-line-clamp: 2;
 }
