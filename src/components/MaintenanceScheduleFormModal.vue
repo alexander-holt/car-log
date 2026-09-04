@@ -32,11 +32,25 @@ const props = defineProps<{
     schedule?: MaintenanceSchedule;
 }>();
 
+type TimeIntervalUnit = "months" | "years";
+
+const storedIntervalMonths = props.schedule?.intervalMonths;
+const initialTimeIntervalUnit: TimeIntervalUnit =
+    storedIntervalMonths !== undefined && storedIntervalMonths % 12 === 0
+        ? "years"
+        : "months";
+
 const formData = reactive({
     serviceType: props.schedule?.serviceType ?? ("OIL_CHANGE" as ServiceType),
     label: props.schedule?.label ?? "",
     intervalMileage: props.schedule?.intervalMileage ?? null,
-    intervalMonths: props.schedule?.intervalMonths ?? null,
+    timeInterval:
+        storedIntervalMonths === undefined
+            ? null
+            : initialTimeIntervalUnit === "years"
+              ? storedIntervalMonths / 12
+              : storedIntervalMonths,
+    timeIntervalUnit: initialTimeIntervalUnit,
     nextDueMileage: props.schedule?.nextDueMileage ?? null,
     nextDueDate: props.schedule?.nextDueDate ?? "",
     reminderLeadMileage: props.schedule?.reminderLeadMileage ?? null,
@@ -54,6 +68,13 @@ function optionalNumber(value: string | number | null): number | undefined {
 function buildSchedule(): MaintenanceSchedule {
     const nextDueMileage = optionalNumber(formData.nextDueMileage);
     const nextDueDate = formData.nextDueDate || undefined;
+    const timeInterval = optionalNumber(formData.timeInterval);
+    const intervalMonths =
+        timeInterval === undefined
+            ? undefined
+            : formData.timeIntervalUnit === "years"
+              ? timeInterval * 12
+              : timeInterval;
 
     return normalizeMaintenanceSchedule({
         id: props.schedule?.id ?? uuidv4(),
@@ -64,10 +85,7 @@ function buildSchedule(): MaintenanceSchedule {
             nextDueMileage === undefined
                 ? undefined
                 : optionalNumber(formData.intervalMileage),
-        intervalMonths:
-            nextDueDate === undefined
-                ? undefined
-                : optionalNumber(formData.intervalMonths),
+        intervalMonths: nextDueDate === undefined ? undefined : intervalMonths,
         nextDueMileage,
         nextDueDate,
         reminderLeadMileage:
@@ -253,7 +271,7 @@ function saveSchedule(): void {
                     </ion-note>
                     <ion-item v-if="hasDateDue">
                         <ion-input
-                            v-model="formData.intervalMonths"
+                            v-model="formData.timeInterval"
                             data-field-path="intervalMonths"
                             label="Repeat every"
                             label-placement="stacked"
@@ -262,9 +280,20 @@ function saveSchedule(): void {
                             inputmode="numeric"
                             min="1"
                             step="1"
+                        />
+                        <ion-select
+                            v-model="formData.timeIntervalUnit"
+                            class="time-interval-unit"
+                            aria-label="Repeat interval unit"
+                            interface="popover"
                         >
-                            <span slot="end">months after service</span>
-                        </ion-input>
+                            <ion-select-option value="months">
+                                Months
+                            </ion-select-option>
+                            <ion-select-option value="years">
+                                Years
+                            </ion-select-option>
+                        </ion-select>
                     </ion-item>
                     <ion-note
                         v-if="errorFor('intervalMonths')"
@@ -382,6 +411,12 @@ function saveSchedule(): void {
     border: 1px solid var(--cl-border);
     border-radius: var(--cl-card-radius);
     background: var(--cl-surface);
+}
+
+.time-interval-unit {
+    align-self: flex-end;
+    min-width: 6.5rem;
+    padding-block: var(--cl-form-control-padding-block);
 }
 
 .validation-summary,

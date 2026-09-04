@@ -14,8 +14,16 @@ const global = {
         IonList: passthrough,
         IonItem: passthrough,
         IonNote: passthrough,
-        IonSelect: passthrough,
-        IonSelectOption: passthrough,
+        IonSelect: {
+            props: ["modelValue"],
+            emits: ["update:modelValue"],
+            template:
+                '<select :value="modelValue" @change="$emit(\'update:modelValue\', $event.target.value)"><slot /></select>',
+        },
+        IonSelectOption: {
+            props: ["value"],
+            template: '<option :value="value"><slot /></option>',
+        },
         IonButton: {
             emits: ["click"],
             template: "<button @click=\"$emit('click')\"><slot /></button>",
@@ -129,6 +137,35 @@ describe("MaintenanceScheduleFormModal", () => {
                 intervalMonths: 6,
                 nextDueDate: "2027-03-03",
                 reminderLeadDays: undefined,
+            }),
+            "confirm",
+        );
+    });
+
+    it("accepts repeat intervals in years and stores them as months", async () => {
+        const dismiss = vi
+            .spyOn(modalController, "dismiss")
+            .mockResolvedValue(true);
+        const wrapper = mount(MaintenanceScheduleFormModal, {
+            props: { vehicleId: "vehicle-1" },
+            global,
+        });
+
+        await wrapper
+            .get('input[aria-label="Next due date"]')
+            .setValue("2028-09-03");
+        await flushPromises();
+        await wrapper.get('input[aria-label="Repeat every"]').setValue(2);
+        await wrapper.get(".time-interval-unit").setValue("years");
+        await wrapper
+            .findAll("button")
+            .find((button) => button.text() === "Save")
+            ?.trigger("click");
+
+        expect(dismiss).toHaveBeenCalledWith(
+            expect.objectContaining({
+                intervalMonths: 24,
+                nextDueDate: "2028-09-03",
             }),
             "confirm",
         );
