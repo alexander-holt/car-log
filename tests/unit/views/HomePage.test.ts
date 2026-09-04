@@ -74,10 +74,10 @@ describe("HomePage", () => {
 
         expect(wrapper.text()).toContain("2020 Honda Civic");
         expect(wrapper.text()).toContain("45,000 mi");
-        expect(wrapper.get(".vehicle-plate").text()).toBe("CARLOG");
-        expect(wrapper.get(".vehicle-plate").attributes("aria-label")).toBe(
-            "License plate CARLOG",
-        );
+        expect(wrapper.get(".license-plate-badge").text()).toBe("CARLOG");
+        expect(
+            wrapper.get(".license-plate-badge").attributes("aria-label"),
+        ).toBe("License plate CARLOG");
         expect(wrapper.get(".vehicle-meta").text()).toBe("45,000 mi");
         expect(wrapper.get(".vehicle-maintenance").text()).toBe(
             "Due soon: Oil change",
@@ -94,7 +94,7 @@ describe("HomePage", () => {
 
         const wrapper = mount(HomePage, { global });
 
-        expect(wrapper.find(".vehicle-plate").exists()).toBe(false);
+        expect(wrapper.find(".license-plate-badge").exists()).toBe(false);
         expect(wrapper.find(".vehicle-icon").exists()).toBe(true);
         expect(wrapper.get(".vehicle-meta").text()).toBe("45,000 mi");
     });

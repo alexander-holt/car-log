@@ -10,6 +10,7 @@ import {
 } from "@ionic/vue";
 import VehicleFormModal from "@/components/VehicleFormModal.vue";
 import MileageUpdateModal from "@/components/MileageUpdateModal.vue";
+import MaintenanceScheduleFormModal from "@/components/MaintenanceScheduleFormModal.vue";
 import VehicleSummary from "@/views/VehicleSummary.vue";
 import { useMaintenanceScheduleStore } from "@/store/maintenanceScheduleStore";
 import { useServiceRecordStore } from "@/store/serviceRecordStore";
@@ -68,7 +69,7 @@ const global = {
             props: ["disabled"],
             emits: ["click"],
             template:
-                '<button data-testid="add-record" :disabled="disabled" @click="$emit(\'click\')"><slot /></button>',
+                '<button data-testid="create-action" :disabled="disabled" @click="$emit(\'click\')"><slot /></button>',
         },
         ServiceRecordCard: {
             props: ["record"],
@@ -211,6 +212,57 @@ describe("VehicleSummary", () => {
         store.error = null;
         await nextTick();
         expect(wrapper.text()).toContain("No maintenance schedules");
+        expect(wrapper.text()).toContain(
+            "Use the + button to add your first schedule.",
+        );
+    });
+
+    it("offers service and schedule actions from the create button", async () => {
+        const presentActionSheet = vi.fn().mockResolvedValue(undefined);
+        const actionSheetSpy = vi
+            .spyOn(actionSheetController, "create")
+            .mockResolvedValue({ present: presentActionSheet } as never);
+        const presentModal = vi.fn().mockResolvedValue(undefined);
+        const createModal = vi
+            .spyOn(modalController, "create")
+            .mockResolvedValue({
+                present: presentModal,
+                onWillDismiss: vi.fn().mockResolvedValue({ role: "cancel" }),
+            } as never);
+        const wrapper = mount(VehicleSummary, { global });
+
+        await wrapper.get('[data-testid="create-action"]').trigger("click");
+        await flushPromises();
+
+        const actionOptions = actionSheetSpy.mock.calls[0][0] as {
+            buttons: Array<{
+                text: string;
+                role?: string;
+                handler?: () => void;
+            }>;
+        };
+        expect(actionOptions.buttons.map((button) => button.text)).toEqual([
+            "Log service",
+            "Add maintenance schedule",
+            "Cancel",
+        ]);
+        expect(presentActionSheet).toHaveBeenCalledOnce();
+
+        actionOptions.buttons
+            .find((button) => button.text === "Add maintenance schedule")
+            ?.handler?.();
+        await flushPromises();
+
+        expect(createModal).toHaveBeenCalledWith(
+            expect.objectContaining({
+                component: MaintenanceScheduleFormModal,
+                componentProps: {
+                    vehicleId: "vehicle-1",
+                    schedule: undefined,
+                },
+            }),
+        );
+        expect(presentModal).toHaveBeenCalledOnce();
     });
 
     it("saves a record and presents a success toast", async () => {
@@ -226,9 +278,21 @@ describe("VehicleSummary", () => {
         const toastSpy = vi.spyOn(toastController, "create").mockResolvedValue({
             present: presentToast,
         } as never);
+        const actionSheetSpy = vi
+            .spyOn(actionSheetController, "create")
+            .mockResolvedValue({
+                present: vi.fn().mockResolvedValue(undefined),
+            } as never);
         const wrapper = mount(VehicleSummary, { global });
 
-        await wrapper.get('[data-testid="add-record"]').trigger("click");
+        await wrapper.get('[data-testid="create-action"]').trigger("click");
+        await flushPromises();
+        const actionOptions = actionSheetSpy.mock.calls[0][0] as {
+            buttons: Array<{ text: string; handler?: () => void }>;
+        };
+        actionOptions.buttons
+            .find((button) => button.text === "Log service")
+            ?.handler?.();
         await flushPromises();
 
         expect(presentModal).toHaveBeenCalledOnce();
@@ -256,9 +320,21 @@ describe("VehicleSummary", () => {
         const toastSpy = vi.spyOn(toastController, "create").mockResolvedValue({
             present: presentToast,
         } as never);
+        const actionSheetSpy = vi
+            .spyOn(actionSheetController, "create")
+            .mockResolvedValue({
+                present: vi.fn().mockResolvedValue(undefined),
+            } as never);
         const wrapper = mount(VehicleSummary, { global });
 
-        await wrapper.get('[data-testid="add-record"]').trigger("click");
+        await wrapper.get('[data-testid="create-action"]').trigger("click");
+        await flushPromises();
+        const actionOptions = actionSheetSpy.mock.calls[0][0] as {
+            buttons: Array<{ text: string; handler?: () => void }>;
+        };
+        actionOptions.buttons
+            .find((button) => button.text === "Log service")
+            ?.handler?.();
         await flushPromises();
 
         expect(toastSpy).toHaveBeenCalledWith(

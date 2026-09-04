@@ -1,11 +1,12 @@
 <script setup lang="ts">
-import { IonButton, IonChip, IonLabel } from "@ionic/vue";
+import { IonButton, IonChip, IonIcon, IonLabel } from "@ionic/vue";
 import { computed } from "vue";
 import {
     daysUntilLocalDate,
     getMaintenanceDueState,
     scheduleName,
 } from "@/services/maintenanceScheduleService";
+import { presentationFor } from "@/services/serviceRecordPresentation";
 import { formatLocalDate } from "@/services/serviceRecordValidation";
 import type { MaintenanceDueState, MaintenanceSchedule } from "@/types";
 
@@ -23,6 +24,9 @@ defineEmits<{
 
 const dueState = computed(() =>
     getMaintenanceDueState(props.schedule, props.currentMileage, props.today),
+);
+const servicePresentation = computed(() =>
+    presentationFor(props.schedule.serviceType),
 );
 
 const dueStateLabel = computed(() => {
@@ -87,11 +91,19 @@ const dateCountdown = computed(() => {
 <template>
     <article
         class="schedule-card"
-        :class="{ 'schedule-card--disabled': !schedule.enabled }"
+        :class="[
+            `service-tone--${servicePresentation.tone}`,
+            { 'schedule-card--disabled': !schedule.enabled },
+        ]"
     >
         <div class="schedule-card__body">
             <div class="schedule-card__heading">
-                <h3>{{ scheduleName(schedule) }}</h3>
+                <div class="schedule-card__identity">
+                    <span class="schedule-card__type-icon" aria-hidden="true">
+                        <ion-icon :icon="servicePresentation.icon" />
+                    </span>
+                    <h3>{{ scheduleName(schedule) }}</h3>
+                </div>
                 <ion-chip :class="`due-state due-state--${dueStateClass}`">
                     <ion-label>{{ dueStateLabel }}</ion-label>
                 </ion-chip>
@@ -155,6 +167,7 @@ const dateCountdown = computed(() => {
 .schedule-card {
     overflow: hidden;
     border: 1px solid var(--cl-border);
+    border-inline-start: 0.25rem solid var(--cl-service-tone);
     border-radius: var(--cl-card-radius);
     background: var(--cl-surface);
     box-shadow: var(--cl-card-shadow);
@@ -175,12 +188,31 @@ const dateCountdown = computed(() => {
     gap: 0.75rem;
 }
 
-.schedule-card h3 {
-    margin: 0;
+.schedule-card__identity {
+    display: flex;
+    min-width: 0;
+    align-items: center;
+    gap: 0.625rem;
 }
 
 .schedule-card h3 {
+    margin: 0;
     font-size: 1.05rem;
+}
+
+.schedule-card__type-icon {
+    display: grid;
+    width: 2rem;
+    height: 2rem;
+    flex: 0 0 auto;
+    place-items: center;
+    border-radius: 0.625rem;
+    background: var(--cl-service-tone-soft);
+    color: var(--cl-service-tone);
+}
+
+.schedule-card__type-icon ion-icon {
+    font-size: 1.125rem;
 }
 
 .schedule-card__due-details {

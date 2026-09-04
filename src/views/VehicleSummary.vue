@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import LicensePlateBadge from "@/components/LicensePlateBadge.vue";
 import ServiceRecordCard from "@/components/ServiceRecordCard.vue";
 import MaintenanceScheduleCard from "@/components/MaintenanceScheduleCard.vue";
 import ServiceRecordFormModal from "@/components/ServiceRecordFormModal.vue";
@@ -36,7 +37,12 @@ import {
     onIonViewWillEnter,
     toastController,
 } from "@ionic/vue";
-import { add, ellipsisHorizontal } from "ionicons/icons";
+import {
+    add,
+    calendarOutline,
+    constructOutline,
+    ellipsisHorizontal,
+} from "ionicons/icons";
 import { computed, ref } from "vue";
 import { useRoute, useRouter } from "vue-router";
 
@@ -281,6 +287,26 @@ async function openScheduleModal(
     }
 }
 
+async function openCreateActions(): Promise<void> {
+    const actionSheet = await actionSheetController.create({
+        header: "Add to vehicle",
+        buttons: [
+            {
+                text: "Log service",
+                icon: constructOutline,
+                handler: () => void openRecordModal(),
+            },
+            {
+                text: "Add maintenance schedule",
+                icon: calendarOutline,
+                handler: () => void openScheduleModal(),
+            },
+            { text: "Cancel", role: "cancel" },
+        ],
+    });
+    await actionSheet.present();
+}
+
 async function setScheduleEnabled(
     schedule: MaintenanceSchedule,
     enabled: boolean,
@@ -468,7 +494,13 @@ function openRecord(record: ServiceRecord): void {
                         </div>
                         <div>
                             <dt>License plate</dt>
-                            <dd>{{ vehicle.licensePlate || "Not entered" }}</dd>
+                            <dd>
+                                <LicensePlateBadge
+                                    v-if="vehicle.licensePlate"
+                                    :license-plate="vehicle.licensePlate"
+                                />
+                                <span v-else>Not entered</span>
+                            </dd>
                         </div>
                     </dl>
                 </section>
@@ -501,14 +533,6 @@ function openRecord(record: ServiceRecord): void {
                 >
                     <header class="section-heading">
                         <h2 id="maintenance-title">Upcoming maintenance</h2>
-                        <ion-button
-                            fill="clear"
-                            size="small"
-                            :disabled="saving"
-                            @click="openScheduleModal()"
-                        >
-                            Add schedule
-                        </ion-button>
                     </header>
 
                     <div
@@ -552,7 +576,7 @@ function openRecord(record: ServiceRecord): void {
 
                     <div v-else class="state-message empty-maintenance">
                         <h3>No maintenance schedules</h3>
-                        <p>Add a mileage interval, a time interval, or both.</p>
+                        <p>Use the + button to add your first schedule.</p>
                     </div>
                 </section>
 
@@ -617,9 +641,11 @@ function openRecord(record: ServiceRecord): void {
                 horizontal="end"
             >
                 <ion-fab-button
-                    aria-label="Add service record"
-                    :disabled="saving || recordStore.loading"
-                    @click="openRecordModal()"
+                    aria-label="Add service or schedule"
+                    :disabled="
+                        saving || recordStore.loading || scheduleStore.loading
+                    "
+                    @click="openCreateActions"
                 >
                     <ion-icon :icon="add" />
                 </ion-fab-button>

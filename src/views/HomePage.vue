@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import LicensePlateBadge from "@/components/LicensePlateBadge.vue";
 import VehicleFormModal from "@/components/VehicleFormModal.vue";
 import {
     compareMaintenanceUrgency,
@@ -199,16 +200,13 @@ async function openVehicleModal(): Promise<void> {
                         :detail="false"
                         @click="goToVehicle(vehicle.id)"
                     >
-                        <span
+                        <LicensePlateBadge
                             v-if="vehicle.licensePlate"
                             slot="start"
-                            class="vehicle-plate"
-                            :aria-label="`License plate ${vehicle.licensePlate}`"
-                        >
-                            <span aria-hidden="true">
-                                {{ vehicle.licensePlate }}
-                            </span>
-                        </span>
+                            class="vehicle-card__plate"
+                            :license-plate="vehicle.licensePlate"
+                            :accessible-label="`License plate ${vehicle.licensePlate}`"
+                        />
                         <span v-else slot="start" class="vehicle-icon">
                             <ion-icon
                                 aria-hidden="true"
@@ -330,33 +328,8 @@ async function openVehicleModal(): Promise<void> {
     font-size: 1.375rem;
 }
 
-.vehicle-plate {
-    display: grid;
-    width: 4.25rem;
-    height: 2.5rem;
-    min-width: 4.25rem;
+.vehicle-card__plate {
     margin-inline-end: 0.875rem;
-    place-items: center;
-    padding-inline: 0.375rem;
-    overflow: hidden;
-    border: 1.5px solid var(--cl-accent);
-    border-radius: 0.375rem;
-    background: var(--cl-accent-soft);
-    color: var(--cl-accent);
-    font-family: var(--cl-license-plate-font-family);
-    font-size: 0.75rem;
-    font-variant-numeric: tabular-nums;
-    font-weight: 750;
-    letter-spacing: var(--cl-license-plate-letter-spacing);
-    line-height: 1;
-    text-transform: uppercase;
-}
-
-.vehicle-plate span {
-    max-width: 100%;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
 }
 
 .vehicle-name {

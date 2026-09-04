@@ -8,6 +8,7 @@ const global = {
     stubs: {
         IonChip: passthrough,
         IonLabel: passthrough,
+        IonIcon: true,
         IonButton: {
             emits: ["click"],
             template: "<button @click=\"$emit('click')\"><slot /></button>",
@@ -40,6 +41,10 @@ describe("MaintenanceScheduleCard", () => {
         });
 
         expect(wrapper.get(".schedule-card").text()).toContain("Oil change");
+        expect(wrapper.get(".schedule-card").classes()).toContain(
+            "service-tone--oil",
+        );
+        expect(wrapper.find(".schedule-card__type-icon").exists()).toBe(true);
         const dueRows = wrapper.findAll(".schedule-card__due-row");
         expect(dueRows[0].get(".schedule-card__target").text()).toBe(
             "@ 50,000 mi",

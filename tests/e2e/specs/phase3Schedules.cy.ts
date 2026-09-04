@@ -7,7 +7,7 @@ describe("Phase 3 maintenance schedules", () => {
         const vehicleModel = `Phase Three Runner ${Date.now()}`;
 
         cy.visit("/");
-        cy.get("ion-fab-button").click();
+        cy.get("ion-fab-button").filter(":visible").click();
         setIonInput('[data-field-path="make"]', "Test");
         setIonInput('[data-field-path="model"]', vehicleModel);
         setIonInput('[data-field-path="currentMileage"]', "45000");
@@ -15,7 +15,12 @@ describe("Phase 3 maintenance schedules", () => {
 
         cy.contains(".vehicle-name", vehicleModel).closest("ion-item").click();
         cy.contains("h2", "Upcoming maintenance").should("be.visible");
-        cy.contains("ion-button", "Add schedule").click();
+        cy.get("ion-fab-button").filter(":visible").click();
+        cy.get("ion-action-sheet")
+            .contains("button", "Add maintenance schedule")
+            .click();
+        cy.get("ion-action-sheet").should("not.exist");
+        cy.get("ion-modal").should("be.visible");
 
         setIonInput('[data-field-path="nextDueMileage"]', "50000");
         setIonInput('[data-field-path="intervalMileage"]', "5000");
