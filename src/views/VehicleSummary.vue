@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import ServiceRecordCard from "@/components/ServiceRecordCard.vue";
+import MaintenanceScheduleCard from "@/components/MaintenanceScheduleCard.vue";
 import ServiceRecordFormModal from "@/components/ServiceRecordFormModal.vue";
 import MaintenanceScheduleFormModal from "@/components/MaintenanceScheduleFormModal.vue";
 import MileageUpdateModal from "@/components/MileageUpdateModal.vue";
@@ -10,31 +11,20 @@ import { useVehicleStore } from "@/store/vehicleStore";
 import type { MileageUpdate } from "@/store/vehicleStore";
 import {
     compareMaintenanceUrgency,
-    getMaintenanceDueState,
     scheduleName,
 } from "@/services/maintenanceScheduleService";
 import { isMileageUpdateDue } from "@/services/mileageReminderService";
-import {
-    formatLocalDate,
-    getLocalDateString,
-} from "@/services/serviceRecordValidation";
-import type {
-    MaintenanceDueState,
-    MaintenanceSchedule,
-    ServiceRecord,
-    Vehicle,
-} from "@/types";
+import { getLocalDateString } from "@/services/serviceRecordValidation";
+import type { MaintenanceSchedule, ServiceRecord, Vehicle } from "@/types";
 import {
     IonBackButton,
     IonButton,
     IonButtons,
-    IonChip,
     IonContent,
     IonFab,
     IonFabButton,
     IonHeader,
     IonIcon,
-    IonLabel,
     IonNote,
     IonPage,
     IonSpinner,
@@ -400,36 +390,6 @@ async function openMileageModal(): Promise<void> {
     }
 }
 
-function dueState(schedule: MaintenanceSchedule): MaintenanceDueState {
-    return getMaintenanceDueState(
-        schedule,
-        vehicle.value?.currentMileage,
-        today,
-    );
-}
-
-function dueStateLabel(schedule: MaintenanceSchedule): string {
-    if (!schedule.enabled) {
-        return "Disabled";
-    }
-    return {
-        UPCOMING: "Upcoming",
-        DUE_SOON: "Due soon",
-        OVERDUE: "Overdue",
-    }[dueState(schedule)];
-}
-
-function dueDetails(schedule: MaintenanceSchedule): string {
-    const details: string[] = [];
-    if (schedule.nextDueMileage !== undefined) {
-        details.push(`${schedule.nextDueMileage.toLocaleString()} mi`);
-    }
-    if (schedule.nextDueDate) {
-        details.push(formatLocalDate(schedule.nextDueDate));
-    }
-    return details.join(" · ");
-}
-
 function openRecord(record: ServiceRecord): void {
     void router.push({
         name: "ServiceRecordDetail",
@@ -578,68 +538,16 @@ function openRecord(record: ServiceRecord): void {
                         v-else-if="vehicleSchedules.length > 0"
                         class="schedule-list"
                     >
-                        <article
+                        <MaintenanceScheduleCard
                             v-for="schedule in vehicleSchedules"
                             :key="schedule.id"
-                            class="schedule-card"
-                            :class="{
-                                'schedule-card--disabled': !schedule.enabled,
-                            }"
-                        >
-                            <div class="schedule-card__body">
-                                <div class="schedule-card__heading">
-                                    <h3>{{ scheduleName(schedule) }}</h3>
-                                    <ion-chip
-                                        :class="`due-state due-state--${
-                                            schedule.enabled
-                                                ? dueState(schedule)
-                                                      .toLowerCase()
-                                                      .replace('_', '-')
-                                                : 'disabled'
-                                        }`"
-                                    >
-                                        <ion-label>
-                                            {{ dueStateLabel(schedule) }}
-                                        </ion-label>
-                                    </ion-chip>
-                                </div>
-                                <p>{{ dueDetails(schedule) }}</p>
-                                <p
-                                    v-if="
-                                        schedule.nextDueMileage !== undefined &&
-                                        vehicle.currentMileage === undefined
-                                    "
-                                    class="schedule-card__note"
-                                >
-                                    Add mileage to calculate mileage status.
-                                </p>
-                            </div>
-                            <footer class="schedule-card__actions">
-                                <ion-button
-                                    v-if="schedule.enabled"
-                                    fill="clear"
-                                    size="small"
-                                    @click="openRecordModal(schedule)"
-                                >
-                                    Log service
-                                </ion-button>
-                                <ion-button
-                                    fill="clear"
-                                    size="small"
-                                    @click="openScheduleModal(schedule)"
-                                >
-                                    Edit
-                                </ion-button>
-                                <ion-button
-                                    fill="clear"
-                                    size="small"
-                                    :aria-label="`More actions for ${scheduleName(schedule)}`"
-                                    @click="openScheduleActions(schedule)"
-                                >
-                                    More
-                                </ion-button>
-                            </footer>
-                        </article>
+                            :schedule="schedule"
+                            :current-mileage="vehicle.currentMileage"
+                            :today="today"
+                            @log="openRecordModal"
+                            @edit="openScheduleModal"
+                            @more="openScheduleActions"
+                        />
                     </div>
 
                     <div v-else class="state-message empty-maintenance">
@@ -829,70 +737,6 @@ function openRecord(record: ServiceRecord): void {
 .schedule-list {
     display: grid;
     gap: 0.75rem;
-}
-
-.schedule-card {
-    overflow: hidden;
-    border: 1px solid var(--cl-border);
-    border-radius: var(--cl-card-radius);
-    background: var(--cl-surface);
-    box-shadow: var(--cl-card-shadow);
-}
-
-.schedule-card--disabled {
-    opacity: 0.72;
-}
-
-.schedule-card__body {
-    padding: 1rem;
-}
-
-.schedule-card__heading {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 0.75rem;
-}
-
-.schedule-card h3,
-.schedule-card p {
-    margin: 0;
-}
-
-.schedule-card h3 {
-    font-size: 1.05rem;
-}
-
-.schedule-card p {
-    margin-top: 0.375rem;
-    color: var(--cl-text-muted);
-}
-
-.schedule-card .schedule-card__note {
-    font-size: 0.8125rem;
-}
-
-.due-state {
-    min-height: 1.75rem;
-    margin: 0;
-    font-size: 0.75rem;
-    font-weight: 650;
-}
-
-.due-state--overdue {
-    --background: var(--cl-danger-soft);
-    --color: var(--cl-danger);
-}
-
-.due-state--due-soon {
-    --background: var(--cl-warning-soft);
-    --color: var(--cl-warning);
-}
-
-.schedule-card__actions {
-    display: flex;
-    justify-content: flex-end;
-    border-top: 1px solid var(--cl-border);
 }
 
 .record-list {
