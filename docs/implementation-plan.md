@@ -494,8 +494,9 @@ Completion record:
 - Deleting a schedule keeps service history and clears linked service-item references through `ON DELETE SET NULL`. The loaded service-record store clears the same references immediately.
 - Vehicle details show Upcoming Maintenance above service history, with create, edit, enable, disable, delete, and Log service actions. My Garage stays exception-focused and shows the nearest active item only after it becomes due soon or overdue.
 - The schedule form puts next-due values first, reveals the matching repeat interval only when needed, and keeps warning timing in a secondary section. Mileage and date values require matching recurrence intervals in both directions. Missing warning overrides use the 500-mile and 14-day app defaults.
+- Maintenance schedule cards own their due-state presentation, details, styles, and action events in a dedicated component. Vehicle details retain schedule loading and mutation orchestration.
 - The fast odometer flow updates mileage and reminder preferences, requires confirmation before lowering an odometer value, and refreshes due states immediately. Stale prompts use `mileageUpdatedAt`, the enabled preference, and the configured day interval.
-- `npm run check`, all three Cypress end-to-end specs against a ready Vite server, and `npm run build:mobile` passed. Unit coverage has 88 tests and SQLite integration coverage has 17 tests.
+- `npm run check`, all three Cypress end-to-end specs against a ready Vite server, and `npm run build:mobile` passed. Unit coverage has 92 tests and SQLite integration coverage has 17 tests.
 - The app built, deployed, and relaunched on an iOS 26.1 iPhone 16e simulator. Existing vehicle and service history data survived. The maintenance section and accessible due-soon badge colors were reviewed in light and dark mode. Android `assembleDebug` passed; no Android emulator or device was connected for a launch and persistence smoke test.
 - Phase 4 notification dependencies, permissions, scheduling, reconciliation, and tap routing were not started.
 
