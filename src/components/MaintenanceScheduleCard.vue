@@ -2,6 +2,7 @@
 import { IonButton, IonChip, IonLabel } from "@ionic/vue";
 import { computed } from "vue";
 import {
+    daysUntilLocalDate,
     getMaintenanceDueState,
     scheduleName,
 } from "@/services/maintenanceScheduleService";
@@ -42,22 +43,45 @@ const dueStateClass = computed(() =>
         : "disabled",
 );
 
-const dueDetails = computed(() => {
-    const details: string[] = [];
-    if (props.schedule.nextDueMileage !== undefined) {
-        details.push(`${props.schedule.nextDueMileage.toLocaleString()} mi`);
+function formatCount(value: number, singular: string, plural: string): string {
+    return `${value.toLocaleString()} ${value === 1 ? singular : plural}`;
+}
+
+const mileageCountdown = computed(() => {
+    if (
+        props.schedule.nextDueMileage === undefined ||
+        props.currentMileage === undefined
+    ) {
+        return "Mileage needed";
     }
-    if (props.schedule.nextDueDate) {
-        details.push(formatLocalDate(props.schedule.nextDueDate));
+
+    const remaining = props.schedule.nextDueMileage - props.currentMileage;
+    if (remaining > 0) {
+        return `in ${formatCount(remaining, "mi", "mi")}`;
     }
-    return details.join(" · ");
+    if (remaining === 0) {
+        return "due now";
+    }
+    return `${formatCount(Math.abs(remaining), "mi", "mi")} overdue`;
 });
 
-const needsMileage = computed(
-    () =>
-        props.schedule.nextDueMileage !== undefined &&
-        props.currentMileage === undefined,
-);
+const dateCountdown = computed(() => {
+    if (!props.schedule.nextDueDate) {
+        return "";
+    }
+
+    const remaining = daysUntilLocalDate(
+        props.schedule.nextDueDate,
+        props.today,
+    );
+    if (remaining > 0) {
+        return `in ${formatCount(remaining, "day", "days")}`;
+    }
+    if (remaining === 0) {
+        return "today";
+    }
+    return `${formatCount(Math.abs(remaining), "day", "days")} overdue`;
+});
 </script>
 
 <template>
@@ -72,10 +96,32 @@ const needsMileage = computed(
                     <ion-label>{{ dueStateLabel }}</ion-label>
                 </ion-chip>
             </div>
-            <p>{{ dueDetails }}</p>
-            <p v-if="needsMileage" class="schedule-card__note">
-                Add mileage to calculate mileage status.
-            </p>
+            <div class="schedule-card__due-details">
+                <div
+                    v-if="schedule.nextDueMileage !== undefined"
+                    class="schedule-card__due-row"
+                    :aria-label="`Due at ${schedule.nextDueMileage.toLocaleString()} miles, ${mileageCountdown}`"
+                >
+                    <span class="schedule-card__target" aria-hidden="true">
+                        @ {{ schedule.nextDueMileage.toLocaleString() }} mi
+                    </span>
+                    <span class="schedule-card__countdown" aria-hidden="true">
+                        {{ mileageCountdown }}
+                    </span>
+                </div>
+                <div
+                    v-if="schedule.nextDueDate"
+                    class="schedule-card__due-row"
+                    :aria-label="`Due on ${formatLocalDate(schedule.nextDueDate)}, ${dateCountdown}`"
+                >
+                    <span class="schedule-card__target" aria-hidden="true">
+                        on {{ formatLocalDate(schedule.nextDueDate) }}
+                    </span>
+                    <span class="schedule-card__countdown" aria-hidden="true">
+                        {{ dateCountdown }}
+                    </span>
+                </div>
+            </div>
         </div>
         <footer class="schedule-card__actions">
             <ion-button
@@ -129,8 +175,7 @@ const needsMileage = computed(
     gap: 0.75rem;
 }
 
-.schedule-card h3,
-.schedule-card p {
+.schedule-card h3 {
     margin: 0;
 }
 
@@ -138,13 +183,27 @@ const needsMileage = computed(
     font-size: 1.05rem;
 }
 
-.schedule-card p {
-    margin-top: 0.375rem;
-    color: var(--cl-text-muted);
+.schedule-card__due-details {
+    display: grid;
+    gap: 0.375rem;
+    margin-top: 0.625rem;
 }
 
-.schedule-card .schedule-card__note {
-    font-size: 0.8125rem;
+.schedule-card__due-row {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 1rem;
+    color: var(--cl-text-muted);
+    font-size: 0.9375rem;
+    font-variant-numeric: tabular-nums;
+}
+
+.schedule-card__countdown {
+    color: var(--cl-text);
+    font-weight: 600;
+    text-align: end;
+    white-space: nowrap;
 }
 
 .due-state {

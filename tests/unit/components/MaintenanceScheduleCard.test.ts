@@ -40,21 +40,68 @@ describe("MaintenanceScheduleCard", () => {
         });
 
         expect(wrapper.get(".schedule-card").text()).toContain("Oil change");
-        expect(wrapper.text()).toContain("50,000 mi · Mar 3, 2027");
+        const dueRows = wrapper.findAll(".schedule-card__due-row");
+        expect(dueRows[0].get(".schedule-card__target").text()).toBe(
+            "@ 50,000 mi",
+        );
+        expect(dueRows[0].get(".schedule-card__countdown").text()).toBe(
+            "in 500 mi",
+        );
+        expect(dueRows[1].get(".schedule-card__target").text()).toBe(
+            "on Mar 3, 2027",
+        );
+        expect(dueRows[1].get(".schedule-card__countdown").text()).toBe(
+            "in 181 days",
+        );
         expect(wrapper.get(".due-state").text()).toBe("Due soon");
         expect(wrapper.get(".due-state").classes()).toContain(
             "due-state--due-soon",
         );
     });
 
-    it("prompts for mileage when a mileage threshold cannot be calculated", () => {
+    it("shows that mileage is needed when it cannot calculate a countdown", () => {
         const wrapper = mount(MaintenanceScheduleCard, {
             props: { schedule, today: "2026-09-03" },
             global,
         });
 
-        expect(wrapper.get(".schedule-card__note").text()).toBe(
-            "Add mileage to calculate mileage status.",
+        expect(wrapper.get(".schedule-card__due-row").text()).toContain(
+            "Mileage needed",
+        );
+    });
+
+    it("shows exact and overdue mileage and date countdowns", async () => {
+        const wrapper = mount(MaintenanceScheduleCard, {
+            props: {
+                schedule: {
+                    ...schedule,
+                    nextDueDate: "2026-09-03",
+                },
+                currentMileage: 50_000,
+                today: "2026-09-03",
+            },
+            global,
+        });
+
+        let dueRows = wrapper.findAll(".schedule-card__due-row");
+        expect(dueRows[0].get(".schedule-card__countdown").text()).toBe(
+            "due now",
+        );
+        expect(dueRows[1].get(".schedule-card__countdown").text()).toBe(
+            "today",
+        );
+
+        await wrapper.setProps({
+            currentMileage: 51_000,
+            today: "2026-09-05",
+        });
+
+        dueRows = wrapper.findAll(".schedule-card__due-row");
+        expect(dueRows[0].get(".schedule-card__countdown").text()).toBe(
+            "1,000 mi overdue",
+        );
+        expect(dueRows[1].get(".schedule-card__countdown").text()).toBe(
+            "2 days overdue",
         );
     });
 

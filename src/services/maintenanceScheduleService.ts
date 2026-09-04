@@ -29,6 +29,10 @@ function calendarDayNumber(value: string): number {
     );
 }
 
+export function daysUntilLocalDate(target: string, today: string): number {
+    return calendarDayNumber(target) - calendarDayNumber(today);
+}
+
 function mostUrgent(
     first: MaintenanceDueState,
     second: MaintenanceDueState,
@@ -62,8 +66,7 @@ function dateState(
         return "UPCOMING";
     }
 
-    const remainingDays =
-        calendarDayNumber(schedule.nextDueDate) - calendarDayNumber(today);
+    const remainingDays = daysUntilLocalDate(schedule.nextDueDate, today);
     if (remainingDays <= 0) {
         return "OVERDUE";
     }
