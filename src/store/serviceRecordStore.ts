@@ -6,6 +6,7 @@ import {
     type SaveServiceRecordResult,
 } from "@/services/serviceRecordRepository";
 import { useVehicleStore } from "@/store/vehicleStore";
+import { useMaintenanceScheduleStore } from "@/store/maintenanceScheduleStore";
 import type { ServiceRecord } from "@/types";
 import { defineStore } from "pinia";
 import { ref } from "vue";
@@ -60,6 +61,12 @@ export const useServiceRecordStore = defineStore("serviceRecords", () => {
         }
     }
 
+    function syncAdvancedSchedules(result: SaveServiceRecordResult): void {
+        useMaintenanceScheduleStore().applyAdvancedSchedules(
+            result.advancedSchedules ?? [],
+        );
+    }
+
     async function addRecord(record: ServiceRecord): Promise<void> {
         error.value = null;
         try {
@@ -67,6 +74,7 @@ export const useServiceRecordStore = defineStore("serviceRecords", () => {
             records.value.push(record);
             sortRecords(records.value);
             syncVehicleMileage(record, result);
+            syncAdvancedSchedules(result);
         } catch (caught) {
             error.value = errorMessage(caught);
             throw caught;
@@ -87,6 +95,7 @@ export const useServiceRecordStore = defineStore("serviceRecords", () => {
             }
             sortRecords(records.value);
             syncVehicleMileage(record, result);
+            syncAdvancedSchedules(result);
         } catch (caught) {
             error.value = errorMessage(caught);
             throw caught;
@@ -106,6 +115,17 @@ export const useServiceRecordStore = defineStore("serviceRecords", () => {
         }
     }
 
+    function clearScheduleReferences(scheduleId: string): void {
+        records.value = records.value.map((record) => ({
+            ...record,
+            items: record.items.map((item) =>
+                item.scheduleId === scheduleId
+                    ? { ...item, scheduleId: undefined }
+                    : item,
+            ),
+        }));
+    }
+
     function clearError(): void {
         error.value = null;
     }
@@ -118,6 +138,7 @@ export const useServiceRecordStore = defineStore("serviceRecords", () => {
         addRecord,
         updateRecord,
         deleteRecord,
+        clearScheduleReferences,
         clearError,
     };
 });

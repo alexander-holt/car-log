@@ -1,10 +1,22 @@
 <script setup lang="ts">
+import LicensePlateBadge from "@/components/LicensePlateBadge.vue";
 import ServiceRecordCard from "@/components/ServiceRecordCard.vue";
+import MaintenanceScheduleCard from "@/components/MaintenanceScheduleCard.vue";
 import ServiceRecordFormModal from "@/components/ServiceRecordFormModal.vue";
+import MaintenanceScheduleFormModal from "@/components/MaintenanceScheduleFormModal.vue";
+import MileageUpdateModal from "@/components/MileageUpdateModal.vue";
 import VehicleFormModal from "@/components/VehicleFormModal.vue";
 import { useServiceRecordStore } from "@/store/serviceRecordStore";
+import { useMaintenanceScheduleStore } from "@/store/maintenanceScheduleStore";
 import { useVehicleStore } from "@/store/vehicleStore";
-import type { ServiceRecord, Vehicle } from "@/types";
+import type { MileageUpdate } from "@/store/vehicleStore";
+import {
+    compareMaintenanceUrgency,
+    scheduleName,
+} from "@/services/maintenanceScheduleService";
+import { isMileageUpdateDue } from "@/services/mileageReminderService";
+import { getLocalDateString } from "@/services/serviceRecordValidation";
+import type { MaintenanceSchedule, ServiceRecord, Vehicle } from "@/types";
 import {
     IonBackButton,
     IonButton,
@@ -25,7 +37,12 @@ import {
     onIonViewWillEnter,
     toastController,
 } from "@ionic/vue";
-import { add, ellipsisHorizontal } from "ionicons/icons";
+import {
+    add,
+    calendarOutline,
+    constructOutline,
+    ellipsisHorizontal,
+} from "ionicons/icons";
 import { computed, ref } from "vue";
 import { useRoute, useRouter } from "vue-router";
 
@@ -33,11 +50,34 @@ const route = useRoute();
 const router = useRouter();
 const vehicleStore = useVehicleStore();
 const recordStore = useServiceRecordStore();
+const scheduleStore = useMaintenanceScheduleStore();
 const saving = ref(false);
+const today = getLocalDateString();
 
 const vehicleId = route.params.id as string;
 const vehicle = computed(() =>
     vehicleStore.vehicles.find((candidate) => candidate.id === vehicleId),
+);
+const vehicleSchedules = computed(() =>
+    scheduleStore.schedules
+        .filter((schedule) => schedule.vehicleId === vehicleId)
+        .sort((first, second) => {
+            if (first.enabled !== second.enabled) {
+                return first.enabled ? -1 : 1;
+            }
+            return compareMaintenanceUrgency(
+                first,
+                second,
+                vehicle.value?.currentMileage,
+                today,
+            );
+        }),
+);
+const activeSchedules = computed(() =>
+    vehicleSchedules.value.filter((schedule) => schedule.enabled),
+);
+const mileageUpdateDue = computed(
+    () => vehicle.value !== undefined && isMileageUpdateDue(vehicle.value),
 );
 
 function messageFor(error: unknown): string {
@@ -71,7 +111,18 @@ async function fetchRecords(): Promise<void> {
     }
 }
 
-onIonViewWillEnter(fetchRecords);
+async function fetchSchedules(): Promise<void> {
+    if (!vehicleId) {
+        return;
+    }
+    try {
+        await scheduleStore.loadSchedules(vehicleId);
+    } catch {
+        // The store error renders below with a retry action.
+    }
+}
+
+onIonViewWillEnter(() => Promise.all([fetchRecords(), fetchSchedules()]));
 
 async function openVehicleEditModal(): Promise<void> {
     const currentVehicle = vehicle.value;
@@ -167,7 +218,7 @@ async function openVehicleActions(): Promise<void> {
     await actionSheet.present();
 }
 
-async function openRecordModal(): Promise<void> {
+async function openRecordModal(schedule?: MaintenanceSchedule): Promise<void> {
     if (!vehicle.value) {
         return;
     }
@@ -177,6 +228,8 @@ async function openRecordModal(): Promise<void> {
         componentProps: {
             vehicleId,
             currentMileage: vehicle.value.currentMileage,
+            schedules: activeSchedules.value,
+            schedule,
         },
     });
     await modal.present();
@@ -193,6 +246,169 @@ async function openRecordModal(): Promise<void> {
     } catch (error) {
         await showToast(
             `Could not save service record. ${messageFor(error)}`,
+            "danger",
+        );
+    } finally {
+        saving.value = false;
+    }
+}
+
+async function openScheduleModal(
+    schedule?: MaintenanceSchedule,
+): Promise<void> {
+    const modal = await modalController.create({
+        component: MaintenanceScheduleFormModal,
+        componentProps: { vehicleId, schedule },
+    });
+    await modal.present();
+    const { data, role } = await modal.onWillDismiss<MaintenanceSchedule>();
+    if (role !== "confirm" || !data) {
+        return;
+    }
+
+    saving.value = true;
+    try {
+        if (schedule) {
+            await scheduleStore.updateSchedule(data);
+        } else {
+            await scheduleStore.addSchedule(data);
+        }
+        await showToast(
+            schedule ? "Schedule updated." : "Schedule added.",
+            "primary",
+        );
+    } catch (error) {
+        await showToast(
+            `Could not save schedule. ${messageFor(error)}`,
+            "danger",
+        );
+    } finally {
+        saving.value = false;
+    }
+}
+
+async function openCreateActions(): Promise<void> {
+    const actionSheet = await actionSheetController.create({
+        header: "Add to vehicle",
+        buttons: [
+            {
+                text: "Log service",
+                icon: constructOutline,
+                handler: () => void openRecordModal(),
+            },
+            {
+                text: "Add maintenance schedule",
+                icon: calendarOutline,
+                handler: () => void openScheduleModal(),
+            },
+            { text: "Cancel", role: "cancel" },
+        ],
+    });
+    await actionSheet.present();
+}
+
+async function setScheduleEnabled(
+    schedule: MaintenanceSchedule,
+    enabled: boolean,
+): Promise<void> {
+    saving.value = true;
+    try {
+        await scheduleStore.setScheduleEnabled(schedule, enabled);
+        await showToast(
+            enabled ? "Schedule enabled." : "Schedule disabled.",
+            "primary",
+        );
+    } catch (error) {
+        await showToast(
+            `Could not update schedule. ${messageFor(error)}`,
+            "danger",
+        );
+    } finally {
+        saving.value = false;
+    }
+}
+
+async function deleteSchedule(schedule: MaintenanceSchedule): Promise<void> {
+    saving.value = true;
+    try {
+        await scheduleStore.deleteSchedule(schedule.id);
+        recordStore.clearScheduleReferences(schedule.id);
+        await showToast(
+            "Schedule deleted. Service history was kept.",
+            "primary",
+        );
+    } catch (error) {
+        await showToast(
+            `Could not delete schedule. ${messageFor(error)}`,
+            "danger",
+        );
+    } finally {
+        saving.value = false;
+    }
+}
+
+async function confirmScheduleDelete(
+    schedule: MaintenanceSchedule,
+): Promise<void> {
+    const alert = await alertController.create({
+        header: "Delete schedule?",
+        message: "Completed service history will be kept.",
+        buttons: [
+            { text: "Cancel", role: "cancel" },
+            {
+                text: "Delete",
+                role: "destructive",
+                handler: () => void deleteSchedule(schedule),
+            },
+        ],
+    });
+    await alert.present();
+}
+
+async function openScheduleActions(
+    schedule: MaintenanceSchedule,
+): Promise<void> {
+    const actionSheet = await actionSheetController.create({
+        header: scheduleName(schedule),
+        buttons: [
+            {
+                text: schedule.enabled ? "Disable schedule" : "Enable schedule",
+                handler: () =>
+                    void setScheduleEnabled(schedule, !schedule.enabled),
+            },
+            {
+                text: "Delete schedule",
+                role: "destructive",
+                handler: () => void confirmScheduleDelete(schedule),
+            },
+            { text: "Cancel", role: "cancel" },
+        ],
+    });
+    await actionSheet.present();
+}
+
+async function openMileageModal(): Promise<void> {
+    const currentVehicle = vehicle.value;
+    if (!currentVehicle) {
+        return;
+    }
+    const modal = await modalController.create({
+        component: MileageUpdateModal,
+        componentProps: { vehicle: currentVehicle },
+    });
+    await modal.present();
+    const { data, role } = await modal.onWillDismiss<MileageUpdate>();
+    if (role !== "confirm" || !data) {
+        return;
+    }
+
+    saving.value = true;
+    try {
+        await vehicleStore.updateMileage(vehicleId, data);
+        await showToast("Mileage updated.", "primary");
+    } catch (error) {
+        await showToast(
+            `Could not update mileage. ${messageFor(error)}`,
             "danger",
         );
     } finally {
@@ -262,22 +478,106 @@ function openRecord(record: ServiceRecord): void {
                         <div>
                             <dt>Current mileage</dt>
                             <dd>
-                                {{
-                                    vehicle.currentMileage === undefined
-                                        ? "Not entered"
-                                        : `${vehicle.currentMileage.toLocaleString()} mi`
-                                }}
+                                <button
+                                    class="mileage-link"
+                                    type="button"
+                                    :disabled="saving"
+                                    @click="openMileageModal"
+                                >
+                                    {{
+                                        vehicle.currentMileage === undefined
+                                            ? "Add mileage"
+                                            : `${vehicle.currentMileage.toLocaleString()} mi`
+                                    }}
+                                </button>
                             </dd>
                         </div>
                         <div>
                             <dt>License plate</dt>
-                            <dd>{{ vehicle.licensePlate || "Not entered" }}</dd>
+                            <dd>
+                                <LicensePlateBadge
+                                    v-if="vehicle.licensePlate"
+                                    :license-plate="vehicle.licensePlate"
+                                />
+                                <span v-else>Not entered</span>
+                            </dd>
                         </div>
                     </dl>
                 </section>
                 <section v-else class="state-message" role="alert">
                     <h2>Vehicle not found</h2>
                     <p>Return to My Garage and choose a vehicle.</p>
+                </section>
+
+                <section
+                    v-if="vehicle && mileageUpdateDue"
+                    class="mileage-prompt"
+                    aria-labelledby="mileage-prompt-title"
+                >
+                    <div>
+                        <h2 id="mileage-prompt-title">Update your mileage</h2>
+                        <p>
+                            When parked, add the current odometer reading so
+                            mileage reminders stay accurate.
+                        </p>
+                    </div>
+                    <ion-button fill="outline" @click="openMileageModal">
+                        Update
+                    </ion-button>
+                </section>
+
+                <section
+                    v-if="vehicle"
+                    class="maintenance-section"
+                    aria-labelledby="maintenance-title"
+                >
+                    <header class="section-heading">
+                        <h2 id="maintenance-title">Upcoming maintenance</h2>
+                    </header>
+
+                    <div
+                        v-if="scheduleStore.loading"
+                        class="state-message"
+                        aria-live="polite"
+                    >
+                        <ion-spinner name="crescent" />
+                        <p>Loading maintenance schedules…</p>
+                    </div>
+
+                    <div
+                        v-else-if="scheduleStore.error"
+                        class="state-message"
+                        role="alert"
+                    >
+                        <ion-note color="danger">
+                            Could not load maintenance schedules.
+                            {{ scheduleStore.error }}
+                        </ion-note>
+                        <ion-button fill="outline" @click="fetchSchedules">
+                            Retry
+                        </ion-button>
+                    </div>
+
+                    <div
+                        v-else-if="vehicleSchedules.length > 0"
+                        class="schedule-list"
+                    >
+                        <MaintenanceScheduleCard
+                            v-for="schedule in vehicleSchedules"
+                            :key="schedule.id"
+                            :schedule="schedule"
+                            :current-mileage="vehicle.currentMileage"
+                            :today="today"
+                            @log="openRecordModal"
+                            @edit="openScheduleModal"
+                            @more="openScheduleActions"
+                        />
+                    </div>
+
+                    <div v-else class="state-message empty-maintenance">
+                        <h3>No maintenance schedules</h3>
+                        <p>Use the + button to add your first schedule.</p>
+                    </div>
                 </section>
 
                 <section
@@ -341,9 +641,11 @@ function openRecord(record: ServiceRecord): void {
                 horizontal="end"
             >
                 <ion-fab-button
-                    aria-label="Add service record"
-                    :disabled="saving || recordStore.loading"
-                    @click="openRecordModal()"
+                    aria-label="Add service or schedule"
+                    :disabled="
+                        saving || recordStore.loading || scheduleStore.loading
+                    "
+                    @click="openCreateActions"
                 >
                     <ion-icon :icon="add" />
                 </ion-fab-button>
@@ -396,6 +698,44 @@ function openRecord(record: ServiceRecord): void {
     text-align: end;
 }
 
+.mileage-link {
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: var(--cl-accent);
+    font: inherit;
+    font-weight: inherit;
+    cursor: pointer;
+}
+
+.mileage-prompt {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-top: 1rem;
+    padding: 1rem;
+    border: 1px solid var(--cl-accent);
+    border-radius: var(--cl-card-radius);
+    background: var(--cl-accent-soft);
+}
+
+.mileage-prompt h2,
+.mileage-prompt p {
+    margin: 0;
+}
+
+.mileage-prompt h2 {
+    font-size: 1rem;
+}
+
+.mileage-prompt p {
+    margin-top: 0.25rem;
+    color: var(--cl-text-muted);
+    font-size: 0.875rem;
+}
+
+.maintenance-section,
 .history-section {
     margin-top: 1.75rem;
 }
@@ -406,11 +746,31 @@ function openRecord(record: ServiceRecord): void {
     letter-spacing: -0.02em;
 }
 
+.section-heading {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-bottom: 0.75rem;
+}
+
+.section-heading h2 {
+    margin: 0;
+    font-size: 1.5rem;
+    letter-spacing: -0.02em;
+}
+
+.schedule-list {
+    display: grid;
+    gap: 0.75rem;
+}
+
 .record-list {
     display: grid;
     gap: 0;
 }
 
+.empty-maintenance,
 .empty-history {
     border: 1px dashed var(--cl-border);
     border-radius: var(--cl-card-radius);

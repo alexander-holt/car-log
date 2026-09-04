@@ -140,6 +140,8 @@ describe("useVehicleStore", () => {
             null,
             45000,
             expect.any(String),
+            30,
+            1,
             expect.any(String),
             "v1",
         ]);
@@ -148,6 +150,72 @@ describe("useVehicleStore", () => {
         expect(store.vehicles[0].model).toBe("Camry SE");
         expect(store.vehicles[0].currentMileage).toBe(45000);
         expect(store.vehicles[0].mileageUpdatedAt).toEqual(expect.any(String));
+    });
+
+    it("updates mileage, reminder settings, and local state immediately", async () => {
+        const store = useVehicleStore();
+        store.vehicles = [
+            {
+                id: "v1",
+                make: "Toyota",
+                model: "Camry",
+                year: 2020,
+                currentMileage: 40_000,
+                mileageReminderIntervalDays: 30,
+                mileageRemindersEnabled: true,
+            },
+        ];
+        mockDb.run.mockResolvedValue({ changes: { changes: 1 } });
+
+        await store.updateMileage("v1", {
+            mileage: 41_250,
+            mileageReminderIntervalDays: 45,
+            mileageRemindersEnabled: false,
+        });
+
+        expect(mockDb.run).toHaveBeenCalledWith(
+            expect.stringContaining("SET currentMileage"),
+            [41_250, expect.any(String), 45, 0, expect.any(String), "v1"],
+        );
+        expect(store.vehicles[0]).toEqual(
+            expect.objectContaining({
+                currentMileage: 41_250,
+                mileageUpdatedAt: expect.any(String),
+                mileageReminderIntervalDays: 45,
+                mileageRemindersEnabled: false,
+            }),
+        );
+    });
+
+    it("requires confirmation before lowering saved mileage", async () => {
+        const store = useVehicleStore();
+        store.vehicles = [
+            {
+                id: "v1",
+                make: "Toyota",
+                model: "Camry",
+                year: 2020,
+                currentMileage: 40_000,
+            },
+        ];
+        mockDb.run.mockResolvedValue({ changes: { changes: 1 } });
+
+        await expect(
+            store.updateMileage("v1", {
+                mileage: 39_000,
+                mileageReminderIntervalDays: 30,
+                mileageRemindersEnabled: true,
+            }),
+        ).rejects.toThrow("Confirm an odometer correction");
+        expect(mockDb.run).not.toHaveBeenCalled();
+
+        await store.updateMileage("v1", {
+            mileage: 39_000,
+            allowCorrection: true,
+            mileageReminderIntervalDays: 30,
+            mileageRemindersEnabled: true,
+        });
+        expect(store.vehicles[0].currentMileage).toBe(39_000);
     });
 
     it("rejects invalid VIN and mileage values before writing", async () => {

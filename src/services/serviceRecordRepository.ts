@@ -4,7 +4,10 @@ import {
     assertValidServiceRecord,
     normalizeOptionalText,
 } from "@/services/serviceRecordValidation";
+import { loadMaintenanceSchedule } from "@/services/maintenanceScheduleRepository";
+import { advanceMaintenanceSchedule } from "@/services/maintenanceScheduleService";
 import type {
+    MaintenanceSchedule,
     ProviderType,
     ServiceItem,
     ServiceRecord,
@@ -22,6 +25,7 @@ export type ServiceRecordDatabase = Pick<
 
 export interface SaveServiceRecordResult {
     mileageUpdatedAt?: string;
+    advancedSchedules?: MaintenanceSchedule[];
 }
 
 interface ServiceRecordRow {
@@ -311,6 +315,74 @@ async function updateVehicleMileage(
     return (result.changes?.changes ?? 0) > 0 ? timestamp : undefined;
 }
 
+async function advanceLinkedSchedules(
+    record: ServiceRecord,
+    timestamp: string,
+    db: ServiceRecordDatabase,
+): Promise<MaintenanceSchedule[]> {
+    const advancedSchedules: MaintenanceSchedule[] = [];
+    const completedScheduleIds = new Set<string>();
+
+    for (const item of record.items) {
+        if (!item.scheduleId) {
+            continue;
+        }
+        if (completedScheduleIds.has(item.scheduleId)) {
+            throw new Error(
+                "A maintenance schedule can only be completed once per service record.",
+            );
+        }
+        completedScheduleIds.add(item.scheduleId);
+
+        const schedule = await loadMaintenanceSchedule(item.scheduleId, db);
+        if (!schedule || schedule.vehicleId !== record.vehicleId) {
+            throw new Error(
+                "A linked maintenance schedule was not found for this vehicle.",
+            );
+        }
+        if (!schedule.enabled) {
+            throw new Error(
+                "A disabled maintenance schedule cannot be completed.",
+            );
+        }
+        if (schedule.serviceType !== item.serviceType) {
+            throw new Error(
+                "The service item category does not match its maintenance schedule.",
+            );
+        }
+
+        const advanced = advanceMaintenanceSchedule(
+            schedule,
+            item.id,
+            record.date,
+            record.mileage,
+        );
+        const result = await db.run(
+            `UPDATE maintenance_schedules
+             SET nextDueMileage = ?, nextDueDate = ?,
+                 lastCompletedServiceItemId = ?, updatedAt = ?
+             WHERE id = ? AND vehicleId = ? AND enabled = 1;`,
+            [
+                advanced.nextDueMileage ?? null,
+                advanced.nextDueDate ?? null,
+                item.id,
+                timestamp,
+                schedule.id,
+                record.vehicleId,
+            ],
+            false,
+        );
+        if ((result.changes?.changes ?? 0) === 0) {
+            throw new Error(
+                "A linked maintenance schedule could not be updated.",
+            );
+        }
+        advancedSchedules.push(advanced);
+    }
+
+    return advancedSchedules;
+}
+
 export async function createServiceRecord(
     record: ServiceRecord,
     db: ServiceRecordDatabase = databaseService.getDb(),
@@ -343,8 +415,15 @@ export async function createServiceRecord(
             await insertItem(record.id, item, timestamp, db);
         }
 
+        const advancedSchedules = await advanceLinkedSchedules(
+            record,
+            timestamp,
+            db,
+        );
+
         return {
             mileageUpdatedAt: await updateVehicleMileage(record, timestamp, db),
+            advancedSchedules,
         };
     });
 }
@@ -424,8 +503,15 @@ export async function updateServiceRecord(
             await writeItemDetails(item, db);
         }
 
+        const advancedSchedules = await advanceLinkedSchedules(
+            record,
+            timestamp,
+            db,
+        );
+
         return {
             mileageUpdatedAt: await updateVehicleMileage(record, timestamp, db),
+            advancedSchedules,
         };
     });
 }

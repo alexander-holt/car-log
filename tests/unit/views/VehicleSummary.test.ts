@@ -9,7 +9,10 @@ import {
     toastController,
 } from "@ionic/vue";
 import VehicleFormModal from "@/components/VehicleFormModal.vue";
+import MileageUpdateModal from "@/components/MileageUpdateModal.vue";
+import MaintenanceScheduleFormModal from "@/components/MaintenanceScheduleFormModal.vue";
 import VehicleSummary from "@/views/VehicleSummary.vue";
+import { useMaintenanceScheduleStore } from "@/store/maintenanceScheduleStore";
 import { useServiceRecordStore } from "@/store/serviceRecordStore";
 import { useVehicleStore } from "@/store/vehicleStore";
 import { createServiceRecord } from "@/services/serviceRecordRepository";
@@ -53,6 +56,8 @@ const global = {
         IonTitle: passthrough,
         IonContent: passthrough,
         IonNote: passthrough,
+        IonChip: passthrough,
+        IonLabel: passthrough,
         IonSpinner: { template: '<span data-testid="spinner" />' },
         IonFab: passthrough,
         IonIcon: true,
@@ -64,7 +69,7 @@ const global = {
             props: ["disabled"],
             emits: ["click"],
             template:
-                '<button data-testid="add-record" :disabled="disabled" @click="$emit(\'click\')"><slot /></button>',
+                '<button data-testid="create-action" :disabled="disabled" @click="$emit(\'click\')"><slot /></button>',
         },
         ServiceRecordCard: {
             props: ["record"],
@@ -101,9 +106,74 @@ describe("VehicleSummary", () => {
                 model: "Civic",
                 year: 2020,
                 currentMileage: 40_000,
+                mileageRemindersEnabled: true,
             },
         ];
         vi.clearAllMocks();
+    });
+
+    it("shows upcoming maintenance above history with its derived state", () => {
+        useMaintenanceScheduleStore().schedules = [
+            {
+                id: "schedule-oil",
+                vehicleId: "vehicle-1",
+                serviceType: "OIL_CHANGE",
+                intervalMileage: 5_000,
+                nextDueMileage: 40_500,
+                reminderLeadMileage: 500,
+                enabled: true,
+            },
+        ];
+        const wrapper = mount(VehicleSummary, { global });
+        const text = wrapper.text();
+
+        expect(text).toContain("Oil change");
+        expect(text).toContain("Due soon");
+        expect(wrapper.get(".due-state").classes()).toContain(
+            "due-state--due-soon",
+        );
+        expect(text.indexOf("Upcoming maintenance")).toBeLessThan(
+            text.indexOf("Service history"),
+        );
+    });
+
+    it("updates mileage through the fast flow and refreshes the summary", async () => {
+        const vehicleStore = useVehicleStore();
+        const updateMileage = vi
+            .spyOn(vehicleStore, "updateMileage")
+            .mockImplementation(async (_id, update) => {
+                vehicleStore.vehicles[0].currentMileage = update.mileage;
+                vehicleStore.vehicles[0].mileageUpdatedAt =
+                    "2026-09-03T12:00:00.000Z";
+            });
+        vi.spyOn(modalController, "create").mockResolvedValue({
+            present: vi.fn().mockResolvedValue(undefined),
+            onWillDismiss: vi.fn().mockResolvedValue({
+                role: "confirm",
+                data: {
+                    mileage: 41_000,
+                    mileageReminderIntervalDays: 30,
+                    mileageRemindersEnabled: true,
+                },
+            }),
+        } as never);
+        vi.spyOn(toastController, "create").mockResolvedValue({
+            present: vi.fn().mockResolvedValue(undefined),
+        } as never);
+        const wrapper = mount(VehicleSummary, { global });
+
+        expect(wrapper.text()).toContain("Update your mileage");
+        await wrapper.get(".mileage-link").trigger("click");
+        await flushPromises();
+
+        expect(modalController.create).toHaveBeenCalledWith(
+            expect.objectContaining({ component: MileageUpdateModal }),
+        );
+        expect(updateMileage).toHaveBeenCalledWith(
+            "vehicle-1",
+            expect.objectContaining({ mileage: 41_000 }),
+        );
+        expect(wrapper.get(".mileage-link").text()).toBe("41,000 mi");
     });
 
     it("renders loading, failure, and empty history states", async () => {
@@ -126,6 +196,75 @@ describe("VehicleSummary", () => {
         expect(wrapper.text()).toContain("No service records yet");
     });
 
+    it("renders schedule loading, error, and empty states", async () => {
+        const store = useMaintenanceScheduleStore();
+        store.loading = true;
+        const wrapper = mount(VehicleSummary, { global });
+
+        expect(wrapper.text()).toContain("Loading maintenance schedules");
+        store.loading = false;
+        store.error = "schedule read failed";
+        await nextTick();
+        expect(wrapper.text()).toContain(
+            "Could not load maintenance schedules. schedule read failed",
+        );
+
+        store.error = null;
+        await nextTick();
+        expect(wrapper.text()).toContain("No maintenance schedules");
+        expect(wrapper.text()).toContain(
+            "Use the + button to add your first schedule.",
+        );
+    });
+
+    it("offers service and schedule actions from the create button", async () => {
+        const presentActionSheet = vi.fn().mockResolvedValue(undefined);
+        const actionSheetSpy = vi
+            .spyOn(actionSheetController, "create")
+            .mockResolvedValue({ present: presentActionSheet } as never);
+        const presentModal = vi.fn().mockResolvedValue(undefined);
+        const createModal = vi
+            .spyOn(modalController, "create")
+            .mockResolvedValue({
+                present: presentModal,
+                onWillDismiss: vi.fn().mockResolvedValue({ role: "cancel" }),
+            } as never);
+        const wrapper = mount(VehicleSummary, { global });
+
+        await wrapper.get('[data-testid="create-action"]').trigger("click");
+        await flushPromises();
+
+        const actionOptions = actionSheetSpy.mock.calls[0][0] as {
+            buttons: Array<{
+                text: string;
+                role?: string;
+                handler?: () => void;
+            }>;
+        };
+        expect(actionOptions.buttons.map((button) => button.text)).toEqual([
+            "Log service",
+            "Add maintenance schedule",
+            "Cancel",
+        ]);
+        expect(presentActionSheet).toHaveBeenCalledOnce();
+
+        actionOptions.buttons
+            .find((button) => button.text === "Add maintenance schedule")
+            ?.handler?.();
+        await flushPromises();
+
+        expect(createModal).toHaveBeenCalledWith(
+            expect.objectContaining({
+                component: MaintenanceScheduleFormModal,
+                componentProps: {
+                    vehicleId: "vehicle-1",
+                    schedule: undefined,
+                },
+            }),
+        );
+        expect(presentModal).toHaveBeenCalledOnce();
+    });
+
     it("saves a record and presents a success toast", async () => {
         vi.mocked(createServiceRecord).mockResolvedValue({});
         const presentModal = vi.fn().mockResolvedValue(undefined);
@@ -139,9 +278,21 @@ describe("VehicleSummary", () => {
         const toastSpy = vi.spyOn(toastController, "create").mockResolvedValue({
             present: presentToast,
         } as never);
+        const actionSheetSpy = vi
+            .spyOn(actionSheetController, "create")
+            .mockResolvedValue({
+                present: vi.fn().mockResolvedValue(undefined),
+            } as never);
         const wrapper = mount(VehicleSummary, { global });
 
-        await wrapper.get('[data-testid="add-record"]').trigger("click");
+        await wrapper.get('[data-testid="create-action"]').trigger("click");
+        await flushPromises();
+        const actionOptions = actionSheetSpy.mock.calls[0][0] as {
+            buttons: Array<{ text: string; handler?: () => void }>;
+        };
+        actionOptions.buttons
+            .find((button) => button.text === "Log service")
+            ?.handler?.();
         await flushPromises();
 
         expect(presentModal).toHaveBeenCalledOnce();
@@ -169,9 +320,21 @@ describe("VehicleSummary", () => {
         const toastSpy = vi.spyOn(toastController, "create").mockResolvedValue({
             present: presentToast,
         } as never);
+        const actionSheetSpy = vi
+            .spyOn(actionSheetController, "create")
+            .mockResolvedValue({
+                present: vi.fn().mockResolvedValue(undefined),
+            } as never);
         const wrapper = mount(VehicleSummary, { global });
 
-        await wrapper.get('[data-testid="add-record"]').trigger("click");
+        await wrapper.get('[data-testid="create-action"]').trigger("click");
+        await flushPromises();
+        const actionOptions = actionSheetSpy.mock.calls[0][0] as {
+            buttons: Array<{ text: string; handler?: () => void }>;
+        };
+        actionOptions.buttons
+            .find((button) => button.text === "Log service")
+            ?.handler?.();
         await flushPromises();
 
         expect(toastSpy).toHaveBeenCalledWith(
