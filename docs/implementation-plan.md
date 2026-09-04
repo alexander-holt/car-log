@@ -1,6 +1,6 @@
 # CarLog implementation plan
 
-Status: Phase 1 completed and was verified on August 31, 2026. Phase 2 completed, was verified, and merged on September 3, 2026. Automated pull request validation merged and was verified on September 3, 2026. Phase 3 completed and was verified on September 3, 2026. Phase 4 is next.
+Status: Phase 1 completed and was verified on August 31, 2026. Phase 2 completed, was verified, and merged on September 3, 2026. Automated pull request validation merged and was verified on September 3, 2026. Phase 3 completed and was verified on September 3, 2026, then merged on September 4, 2026. Phase 4 is next.
 
 ## Objective
 
@@ -21,7 +21,7 @@ The app targets iOS and Android. Browser support is for development until cloud 
 - Local data must remain usable without an account or network connection.
 - A completed service record is historical data. A maintenance schedule is future work. Store and manage them separately.
 - DIY work and shop work use the same record model.
-- Users control maintenance intervals. Manufacturer recommendations from service visits must not silently create or change shedules without user approval.
+- Users control maintenance intervals. Manufacturer recommendations from service visits must not silently create or change schedules without user approval.
 - The app must not require location access for its core reminder flow. If needed, will consider drive detection for more timely mileage update reminders while users are still in sight of their odometer.
 - Prefer explicit migrations and tested SQL over schema creation during every startup.
 
@@ -488,6 +488,7 @@ Exit criteria:
 
 Completion record:
 
+- Pull request #5 merged `feat/phase-3-maintenance-schedules` into `main` as `56aa6c2` on September 4, 2026. Post-merge GitHub Actions run `33908118877` passed.
 - Maintenance schedule types, validation, repository operations, and Pinia state now cover mileage intervals, time intervals, or both. Due state is calculated from the current local calendar date and vehicle mileage and is never stored.
 - The released version 1 schema already contained every Phase 3 table, column, foreign key, index, and uniqueness rule, so Phase 3 did not add or edit a migration. Repository validation adds clear duplicate errors, including distinct-label handling for active Other schedules.
 - Service items can link to one schedule. Creating or editing a mixed record advances every linked schedule from the completed date and mileage in the same SQLite transaction as the record, items, details, and vehicle mileage. Integration tests force a later schedule update to fail and verify that every earlier write rolls back.
@@ -592,4 +593,4 @@ Exit criteria:
 
 ## Next implementation step
 
-Merge `feat/phase-3-maintenance-schedules` before starting Phase 4 on `feat/phase-4-local-notifications`. Do not add local-notification work to the Phase 3 branch.
+Start Phase 4 on `feat/phase-4-local-notifications`, created from the latest `origin/main`. Keep the branch limited to the local-notification scope and exit criteria above; do not begin Phase 5 release hardening.
